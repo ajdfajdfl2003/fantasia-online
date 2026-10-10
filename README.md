@@ -48,10 +48,11 @@
 
 ## 美術圖片
 
-圖片由外部 AI 繪圖工具產生(例如 ChatGPT),規格與可直接複製的 prompt 見 `docs/art/美術規格.md`。
+圖片由外部 AI 繪圖工具產生(例如 ChatGPT)。流程見 `docs/art/美術規格.md`,
+每隻寵物可以直接複製的 prompt 在 `docs/art/繪圖prompt.md`。
 
-1. 開伺服器,瀏覽器打開 http://localhost:8000/tools/sprite-tool.html(去背 / 裁切小工具)
-2. 選要做的寵物、把圖拖進去、調整去背、看預覽,按「存進遊戲」
+1. 把 prompt 貼到 ChatGPT,下載的原圖用中文名字存到 `art-src/`(例如 `art-src/噗噗.png`)
+2. 開伺服器,瀏覽器打開 http://localhost:8000/tools/sprite-tool.html,選那隻寵物(會自動載入原圖),按「存進遊戲」
 3. 重新整理遊戲頁面。右下角「美術:圖片 / 程式」可以切換比較
 
 ## 檔案結構
