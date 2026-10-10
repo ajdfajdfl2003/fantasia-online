@@ -38,7 +38,7 @@ except Exception:
 PORT = 8000
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(ROOT, 'public')
-DATA_DIR = os.path.join(ROOT, 'data')
+DATA_DIR = os.environ.get('FANTASIA_DATA') or os.path.join(ROOT, 'data')   # 測試時可以指定別的存檔資料夾
 SAVE_FILE = os.path.join(DATA_DIR, 'players.json')
 
 TICK = 0.05        # 伺服器邏輯 20 Hz

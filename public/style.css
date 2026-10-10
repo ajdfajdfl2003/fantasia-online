@@ -241,3 +241,50 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 #tip b { color: #fff; font-size: 13px; }
 #tip .t { color: #9aa8cc; }
 #tip .p { color: #ffd84a; }
+
+/* ---------- 寵物照顧 (階段 2) ---------- */
+.bar.food i { background: linear-gradient(180deg, #ffd08a, #e07a20 50%, #8a3a0a); }
+.bar.joy i { background: linear-gradient(180deg, #ffc0e0, #e04a9a 50%, #8a0a4a); }
+.bar.bond i { background: linear-gradient(180deg, #ffb0b0, #e03a3a 50%, #7a0a1a); }
+#sp-foodbar.warn i { animation: atbflash .5s infinite alternate; }
+.pd-care { margin-top: 6px; padding: 4px 6px; background: rgba(0, 0, 0, .25); border: 1px solid #3c4a74; }
+.care-row { display: flex; align-items: center; gap: 6px; }
+.care-row > span { width: 40px; color: #ffe8a8; flex: none; }
+.care-row .bar { flex: 1; margin-top: 0; height: 11px; }
+.care-row em { width: 64px; flex: none; font-style: normal; font-size: 11px; }
+.care-taste { margin-top: 4px; color: #c8d4f0; }
+.care-taste img, .pd-care img { width: 18px; height: 18px; vertical-align: middle; image-rendering: pixelated; }
+.care-btns { display: flex; gap: 4px; margin-top: 4px; }
+.care-btns button { padding: 2px 8px; }
+.care-btns small { font-size: 10px; color: #6a5a20; }
+.care-bond { margin-top: 4px; font-size: 11px; color: #c8d4f0; line-height: 1.5; }
+.good { color: #8aff9a; }
+.warn { color: #ffb04a; }
+.bad { color: #ff6a5a; }
+.love { color: #ff8ac0; }
+.mood-tag { margin-left: 3px; padding: 0 3px; font-size: 10px; border-radius: 2px; background: rgba(0, 0, 0, .45); }
+.taste-love { color: #e0306a !important; font-weight: bold; }
+.taste-like { color: #2a8a3a !important; }
+.taste-ok { color: #6a6a6a !important; }
+.taste-hate { color: #8a4a2a !important; }
+#tip .taste-love { color: #ff8ab0 !important; }
+#tip .taste-like { color: #8aff9a !important; }
+#tip .taste-ok { color: #c8d4f0 !important; }
+#tip .taste-hate { color: #ffb08a !important; }
+#menu-pop button.menu-head { filter: none; color: #1b1b1b; background: linear-gradient(180deg, #fff8e0, #e8dcb0); cursor: default; }
+#menu-pop button.menu-head small { color: #6a5a30; }
+.bbtn.glow { animation: assistglow .4s infinite alternate; }
+@keyframes assistglow { from { box-shadow: 0 0 2px #ffd84a, 1px 1px 0 #000; } to { box-shadow: 0 0 10px #ffd84a, 1px 1px 0 #000; } }
+
+/* ---------- 寵物旅館 ---------- */
+.bank-body { display: flex; gap: 8px; }
+.bank-col { flex: 1; min-width: 0; }
+.bank-h { color: #ffe8a8; margin-bottom: 4px; }
+.bank-h span { color: #c8d4f0; }
+.bank-list { display: flex; flex-direction: column; gap: 3px; max-height: 360px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #6680c4 transparent; }
+.bank-row { display: flex; gap: 4px; align-items: center; padding: 3px; background: rgba(0, 0, 0, .3); border: 1px solid #3c4a74; }
+.bank-row.sulk { border-color: #a04a3a; }
+.bank-row img { width: 40px; height: 40px; image-rendering: pixelated; flex: none; }
+.bank-row small { color: #9aa8cc; }
+.bank-row button { flex: none; padding: 2px 6px; }
+.bank-empty { padding: 12px; text-align: center; }

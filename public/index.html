@@ -61,6 +61,7 @@
         <div class="sp-head"><b id="sp-name"></b> <span id="sp-lv"></span> <span id="sp-star" class="star"></span></div>
         <div class="bar thin hp"><i id="sp-hp"></i><span id="sp-hptxt"></span></div>
         <div class="bar thin mp"><i id="sp-mp"></i><span id="sp-mptxt"></span></div>
+        <div class="bar thin food" id="sp-foodbar"><i id="sp-food"></i><span id="sp-foodtxt"></span></div>
       </div>
     </div>
     <div class="st-stats">金幣 <b id="st-gold" class="gold">0</b></div>
@@ -119,6 +120,17 @@
     <div class="body" id="hatch-body"></div>
   </div>
 
+  <div id="win-bank" class="panel win" hidden style="left:50%;top:12%;margin-left:-290px;width:580px">
+    <div class="title"><span>寵物旅館</span><b class="x">×</b></div>
+    <div class="body">
+      <div class="bank-body">
+        <div class="bank-col"><div class="bank-h">身上的寵物 <span id="bank-n1"></span></div><div class="bank-list" id="bank-party"></div></div>
+        <div class="bank-col"><div class="bank-h">住在旅館的寵物 <span id="bank-n2"></span></div><div class="bank-list" id="bank-list"></div></div>
+      </div>
+      <div class="hint">寄放免費,HP / MP 會補滿;住在旅館不會肚子餓,心情會慢慢變好。身上至少要留一隻寵物。</div>
+    </div>
+  </div>
+
   <div id="win-dlg" class="panel win" hidden style="left:50%;top:22%;margin-left:-190px;width:380px">
     <div class="title"><span id="dlg-name"></span><b class="x">×</b></div>
     <div class="body">
@@ -142,6 +154,7 @@
         <tr><th colspan="2" class="sec">地圖</th></tr>
         <tr><th>滑鼠左鍵</th><td>移動 / 和 NPC 對話 / 點戰鬥圈加入別人的戰鬥</td></tr>
         <tr><th>W A S D、方向鍵</th><td>移動。在野外走路會隨機遇到野生寵物</td></tr>
+        <tr><th>點自己的寵物</th><td>摸摸、餵食、玩耍、表演</td></tr>
         <tr><th>P / I / H / M</th><td>寵物 / 背包 / 說明 / 音效</td></tr>
         <tr><th>Enter</th><td>聊天(<code>/w 名稱 訊息</code> 密語、<code>/who</code> 線上名單)</td></tr>
         <tr><th colspan="2" class="sec">戰鬥(時間棒集滿才能行動,時間不會暫停!)</th></tr>
@@ -149,11 +162,16 @@
         <tr><th>1 ~ 5</th><td>寵物:1 攻擊、2~4 技能、5 防禦</td></tr>
         <tr><th>Q W E</th><td>主人的職業技能</td></tr>
         <tr><th>R / C / X / F</th><td>紅色藥水 / 封印卡捕捉 / 換寵 / 逃跑</td></tr>
+        <tr><th>T</th><td>助攻(親密度 40 以上、默契滿了才能用,不用等主人的時間棒)</td></tr>
         <tr><th>空白鍵</th><td>自動戰鬥開關</td></tr>
       </table>
       <p>寵物時間棒集滿後 6 秒沒下指令,會自動普攻。寵物受傷時主人也會跟著扣一點血。</p>
       <p><b class="gold">捕捉</b>:把野生寵物打到殘血再丟封印卡,血越少越容易成功。野生寵物的天生素質要抓到才知道!</p>
       <p><b class="gold">孵蛋</b>:向孵化屋的葛莉絲婆婆買蛋。調整溫度、濕度讓蛋覺得舒服,孵得好就是 12 點極品。</p>
+      <p><b class="gold">照顧</b>:寵物會肚子餓(飽食度)、有心情(快樂值),跟你越來越親(親密度)。每種寵物愛吃的東西不同,
+        食物向道具商人莉莉購買,打倒野生寵物也會掉。餓昏的寵物不肯戰鬥;心情差會不聽指令,太久沒人理還會離家出走。
+        親密度越高,主人技能對牠越有效,還能「助攻」和「護主」。下線時寵物的狀態會暫停。</p>
+      <p><b class="gold">寵物旅館</b>:帶不下的寵物可以免費寄放在村子東邊的寵物旅館(蘿絲),最多 20 隻。</p>
     </div>
   </div>
 
