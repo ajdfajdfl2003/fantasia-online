@@ -156,7 +156,7 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .bp-foot .foe { color: #ffb8a0; }
 .bp-foot .ally { color: #8aff9a; }
 .bp-foot .auto { cursor: pointer; color: #ffe8a8; }
-#menu-pop { position: fixed; z-index: 60; display: flex; flex-direction: column; gap: 2px; padding: 4px; min-width: 180px; }
+#menu-pop { position: fixed; z-index: 10001; display: flex; flex-direction: column; gap: 2px; padding: 4px; min-width: 180px; }
 #menu-pop button { display: flex; align-items: center; gap: 6px; text-align: left; }
 #menu-pop img { width: 24px; height: 24px; image-rendering: pixelated; }
 #menu-pop small { color: #5a5a5a; margin-left: auto; }
@@ -229,14 +229,14 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .help th.sec { color: #9fd0ff; font-weight: bold; padding-top: 6px; }
 .help td { padding: 2px 0; }
 .help p { line-height: 1.6; margin: 8px 0 0; color: #c8d4f0; }
-#overlay { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); }
+#overlay { position: absolute; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); }
 #overlay .panel { width: 300px; text-align: center; }
 #overlay p { line-height: 1.6; white-space: pre-wrap; }
 #ov-extra { line-height: 1.7; }
 .ov-pet { width: 120px; height: 110px; image-rendering: pixelated; background: radial-gradient(#5a4a7a, #1a1430); border: 1px solid #c9a95c; }
 .ov-star { font-size: 20px; color: #ffd84a; }
 
-#tip { position: fixed; z-index: 100; pointer-events: none; max-width: 260px; padding: 6px 8px; line-height: 1.6;
+#tip { position: fixed; z-index: 10002; pointer-events: none; max-width: 260px; padding: 6px 8px; line-height: 1.6;
   background: rgba(8, 10, 24, .95); border: 1px solid #c9a95c; color: #e8e8e8; box-shadow: 2px 2px 6px #000; }
 #tip b { color: #fff; font-size: 13px; }
 #tip .t { color: #9aa8cc; }

@@ -225,7 +225,7 @@ function onHatch(m) {
 // 回傳單位腳底的世界座標
 function unitPos(rb, u) {
   if (u.s === 0) {
-    const n = Math.max(1, rb.np || 1), y = rb.y + (u.r - (n - 1) / 2) * 1.25;
+    const n = Math.max(1, rb.np || 1), y = rb.y + (u.r - (n - 1) / 2) * 1.75;
     return u.k === 'o' ? [rb.x - 3.1, y] : [rb.x - 1.2, y];
   }
   if (u.boss) return [rb.x + 2.5, rb.y + 0.5];
@@ -484,7 +484,7 @@ function drawEntity(e, t) {
 // ----- 戰鬥 -----
 function battleEllipse(rb) {
   const rows = Math.max(rb.np || 1, (rb.maxRow || 0) + 1);
-  return { cx: rb.x * TILE + S.ox, cy: (rb.y + 0.15) * TILE + S.oy, rx: (rb.boss ? 5 : 4.4) * TILE, ry: Math.max(2.4, rows * 0.7 + 1.3) * TILE };
+  return { cx: rb.x * TILE + S.ox, cy: (rb.y + 0.15) * TILE + S.oy, rx: (rb.boss ? 5 : 4.4) * TILE, ry: Math.max(2.4, rows * 0.9 + 1.2) * TILE };
 }
 function drawBattleGround(rb, t) {
   const E = battleEllipse(rb), k = Math.min(1, (t - rb.t0) / 400);

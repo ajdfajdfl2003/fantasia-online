@@ -108,6 +108,7 @@ const UI = (() => {
     el('bp-auto').onchange = e => toggleAuto(e.target.checked);
     for (const w of document.querySelectorAll('.win')) {
       w.querySelector('.x').onclick = () => closeWin(w.id.slice(4));
+      w.addEventListener('mousedown', () => front(w));
       makeDraggable(w);
     }
     document.addEventListener('mousemove', tipMove);
@@ -126,9 +127,12 @@ const UI = (() => {
       addEventListener('mousemove', mv); addEventListener('mouseup', up);
     });
   }
+  let zTop = 20;
+  const front = w => { w.style.zIndex = ++zTop; };
   function toggleWin(n) { const w = el('win-' + n); w.hidden ? openWin(n) : closeWin(n); }
   function openWin(n) {
     el('win-' + n).hidden = false;
+    front(el('win-' + n));
     if (n === 'pets') renderPets();
     if (n === 'hatch') renderHatch();
     sfx('click');
@@ -413,6 +417,7 @@ const UI = (() => {
     hatchUpdate();
   }
   function sendKnob(now) {
+    if (!knob || !S.hatch) return;   // 孵化已結束 (延遲送出的那一次不用送了)
     const t = performance.now();
     if (!now && t - knobSendT < 90) { clearTimeout(sendKnob.tm); sendKnob.tm = setTimeout(() => sendKnob(true), 100); return; }
     knobSendT = t;
