@@ -19,12 +19,15 @@
         <div class="server">伺服器:<b>艾爾文</b> <span class="ok">● 順暢</span></div>
         <div class="row"><label for="lg-name">角色名稱</label><input id="lg-name" maxlength="12" autocomplete="off" spellcheck="false"></div>
         <div class="row"><label for="lg-pass">密　　碼</label><input id="lg-pass" type="password" maxlength="32" placeholder="可留空"></div>
-        <div class="cls-title">選擇職業 <small>(輸入新名稱時會建立新角色)</small></div>
+        <div class="cls-title">選擇職業 <small>(主人負責輔助,寵物負責戰鬥)</small></div>
         <div class="cls-list">
-          <label class="cls"><input type="radio" name="cls" value="warrior" checked><canvas data-cls="warrior" width="56" height="60"></canvas><b>劍士</b><small>血厚近戰<br>勇往直前</small></label>
-          <label class="cls"><input type="radio" name="cls" value="mage"><canvas data-cls="mage" width="56" height="60"></canvas><b>法師</b><small>強力魔法<br>遠距輸出</small></label>
-          <label class="cls"><input type="radio" name="cls" value="archer"><canvas data-cls="archer" width="56" height="60"></canvas><b>弓手</b><small>射程最遠<br>身手敏捷</small></label>
+          <label class="cls"><input type="radio" name="cls" value="knight" checked><canvas data-cls="knight" width="48" height="56"></canvas><b>騎士</b><small>強化寵物</small></label>
+          <label class="cls"><input type="radio" name="cls" value="hunter"><canvas data-cls="hunter" width="48" height="56"></canvas><b>獵人</b><small>捕捉高手</small></label>
+          <label class="cls"><input type="radio" name="cls" value="priest"><canvas data-cls="priest" width="48" height="56"></canvas><b>牧師</b><small>治療復活</small></label>
+          <label class="cls"><input type="radio" name="cls" value="mage"><canvas data-cls="mage" width="48" height="56"></canvas><b>法師</b><small>操控天氣</small></label>
+          <label class="cls"><input type="radio" name="cls" value="bard"><canvas data-cls="bard" width="48" height="56"></canvas><b>吟遊詩人</b><small>歌聲支援</small></label>
         </div>
+        <div id="cls-desc"></div>
         <button id="lg-btn" class="big">進 入 遊 戲</button>
         <div id="lg-err"></div>
       </div>
@@ -52,7 +55,15 @@
       <div class="bar mp"><i id="bar-mp"></i><span id="txt-mp"></span></div>
       <div class="bar xp"><i id="bar-xp"></i><span id="txt-xp"></span></div>
     </div>
-    <div class="st-stats">攻擊 <b id="st-atk">0</b>　防禦 <b id="st-def">0</b>　金幣 <b id="st-gold" class="gold">0</b></div>
+    <div class="st-pet" id="st-pet" title="出戰寵物 (按 P 查看)">
+      <canvas id="pet-face" width="64" height="64"></canvas>
+      <div class="sp-info">
+        <div class="sp-head"><b id="sp-name"></b> <span id="sp-lv"></span> <span id="sp-star" class="star"></span></div>
+        <div class="bar thin hp"><i id="sp-hp"></i><span id="sp-hptxt"></span></div>
+        <div class="bar thin mp"><i id="sp-mp"></i><span id="sp-mptxt"></span></div>
+      </div>
+    </div>
+    <div class="st-stats">金幣 <b id="st-gold" class="gold">0</b></div>
   </div>
 
   <div id="mini" class="panel">
@@ -65,9 +76,22 @@
     <input id="chat-in" maxlength="100" placeholder="按 Enter 開始聊天…" autocomplete="off">
   </div>
 
-  <div id="hotbar" class="panel"></div>
+  <div id="bpanel" class="panel" hidden>
+    <div class="brow">
+      <canvas class="bp-face" id="bp-petface" width="64" height="64"></canvas>
+      <div class="bp-info"><b id="bp-petname">寵物</b><div class="atb"><i id="bp-petatb"></i></div><small id="bp-petvals"></small></div>
+      <div class="bp-btns" id="bp-petbtns"></div>
+    </div>
+    <div class="brow">
+      <canvas class="bp-face" id="bp-ownface" width="64" height="64"></canvas>
+      <div class="bp-info"><b id="bp-ownname">主人</b><div class="atb"><i id="bp-ownatb"></i></div><small id="bp-ownvals"></small></div>
+      <div class="bp-btns" id="bp-ownbtns"></div>
+    </div>
+    <div class="bp-foot"><span id="bp-target"></span><label class="auto"><input type="checkbox" id="bp-auto"> 自動戰鬥 (空白鍵)</label></div>
+  </div>
 
   <div id="menu" class="panel">
+    <button data-win="pets">寵物 (P)</button>
     <button data-win="inv">背包 (I)</button>
     <button data-win="help">說明 (H)</button>
     <button id="btn-snd">音效:開</button>
@@ -76,15 +100,23 @@
   <div id="win-inv" class="panel win" hidden style="right:16px;top:200px">
     <div class="title"><span>背包</span><b class="x">×</b></div>
     <div class="body">
-      <div class="equip">
-        <div><div class="slot" id="eq-weapon"></div><small>武器</small></div>
-        <div><div class="slot" id="eq-armor"></div><small>防具</small></div>
-        <div class="eq-stats" id="inv-stats"></div>
-      </div>
       <div class="grid" id="inv-grid"></div>
       <div class="inv-foot">金幣:<b class="gold" id="inv-gold">0</b></div>
-      <div class="hint">雙擊:使用/裝備 · 商店開啟時右鍵:販賣</div>
+      <div class="hint">雙擊:對出戰寵物使用 · 在商人旁按右鍵:販賣</div>
     </div>
+  </div>
+
+  <div id="win-pets" class="panel win" hidden style="left:280px;top:60px;width:560px">
+    <div class="title"><span id="pets-title">寵物</span><b class="x">×</b></div>
+    <div class="body pets-body">
+      <div id="pet-list"></div>
+      <div id="pet-detail"></div>
+    </div>
+  </div>
+
+  <div id="win-hatch" class="panel win" hidden style="left:50%;top:12%;margin-left:-170px;width:340px">
+    <div class="title"><span>孵蛋器</span><b class="x">×</b></div>
+    <div class="body" id="hatch-body"></div>
   </div>
 
   <div id="win-dlg" class="panel win" hidden style="left:50%;top:22%;margin-left:-190px;width:380px">
@@ -96,45 +128,52 @@
   </div>
 
   <div id="win-shop" class="panel win" hidden style="left:50%;top:18%;margin-left:-420px;width:300px">
-    <div class="title"><span>道具商店</span><b class="x">×</b></div>
+    <div class="title"><span id="shop-title">商店</span><b class="x">×</b></div>
     <div class="body">
       <div id="shop-list"></div>
-      <div class="hint">Shift+點擊購買 10 個 · 在背包按右鍵可販賣物品</div>
+      <div class="hint">Shift+點擊一次買 10 個 · 在背包按右鍵可販賣物品</div>
     </div>
   </div>
 
-  <div id="win-help" class="panel win" hidden style="left:50%;top:15%;margin-left:-200px;width:400px">
+  <div id="win-help" class="panel win" hidden style="left:50%;top:10%;margin-left:-220px;width:440px">
     <div class="title"><span>操作說明</span><b class="x">×</b></div>
     <div class="body help">
       <table>
-        <tr><th>滑鼠左鍵</th><td>移動 / 攻擊怪物 / 和 NPC 對話 / 撿取物品</td></tr>
-        <tr><th>W A S D、方向鍵</th><td>移動</td></tr>
-        <tr><th>空白鍵</th><td>攻擊最近的怪物</td></tr>
-        <tr><th>1、2</th><td>使用技能 (2 號技能 Lv.5 解鎖)</td></tr>
-        <tr><th>3、4</th><td>紅色藥水 / 藍色藥水</td></tr>
-        <tr><th>I / H / M</th><td>背包 / 說明 / 音效開關</td></tr>
-        <tr><th>Enter</th><td>聊天 (所有人都看得到)</td></tr>
-        <tr><th>/w 名稱 訊息</th><td>密語給某位玩家</td></tr>
-        <tr><th>/who</th><td>查看線上玩家</td></tr>
+        <tr><th colspan="2" class="sec">地圖</th></tr>
+        <tr><th>滑鼠左鍵</th><td>移動 / 和 NPC 對話 / 點戰鬥圈加入別人的戰鬥</td></tr>
+        <tr><th>W A S D、方向鍵</th><td>移動。在野外走路會隨機遇到野生寵物</td></tr>
+        <tr><th>P / I / H / M</th><td>寵物 / 背包 / 說明 / 音效</td></tr>
+        <tr><th>Enter</th><td>聊天(<code>/w 名稱 訊息</code> 密語、<code>/who</code> 線上名單)</td></tr>
+        <tr><th colspan="2" class="sec">戰鬥(時間棒集滿才能行動,時間不會暫停!)</th></tr>
+        <tr><th>點敵人 / Tab</th><td>選擇目標;點我方寵物 = 選擇補血對象</td></tr>
+        <tr><th>1 ~ 5</th><td>寵物:1 攻擊、2~4 技能、5 防禦</td></tr>
+        <tr><th>Q W E</th><td>主人的職業技能</td></tr>
+        <tr><th>R / C / X / F</th><td>紅色藥水 / 封印卡捕捉 / 換寵 / 逃跑</td></tr>
+        <tr><th>空白鍵</th><td>自動戰鬥開關</td></tr>
       </table>
-      <p>越往地圖外圍,怪物越強。村莊裡是安全區,怪物不會進來,而且回復速度更快。</p>
-      <p>北方焦土住著 <b class="gold">Lv.25 炎龍</b>,每 3 分鐘重生一次。找朋友組隊一起挑戰吧!</p>
+      <p>寵物時間棒集滿後 6 秒沒下指令,會自動普攻。寵物受傷時主人也會跟著扣一點血。</p>
+      <p><b class="gold">捕捉</b>:把野生寵物打到殘血再丟封印卡,血越少越容易成功。野生寵物的天生素質要抓到才知道!</p>
+      <p><b class="gold">孵蛋</b>:向孵化屋的葛莉絲婆婆買蛋。調整溫度、濕度讓蛋覺得舒服,孵得好就是 12 點極品。</p>
     </div>
   </div>
 
   <div id="overlay" hidden>
     <div class="panel">
-      <div class="title"><span id="ov-title">你已經死亡</span></div>
+      <div class="title"><span id="ov-title"></span></div>
       <div class="body">
-        <p id="ov-text">勝敗乃兵家常事,大俠請重新來過。</p>
-        <button id="ov-btn" class="big">在村莊復活</button>
+        <div id="ov-extra"></div>
+        <p id="ov-text"></p>
+        <button id="ov-btn" class="big">確定</button>
       </div>
     </div>
   </div>
 
+  <div id="menu-pop" class="panel" hidden></div>
   <div id="tip" hidden></div>
 </div>
 
+<script src="sprites.js"></script>
 <script src="game.js"></script>
+<script src="ui.js"></script>
 </body>
 </html>

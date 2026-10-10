@@ -518,8 +518,8 @@ class Game:
             ws.send({'t': 'err', 'm': '此角色已經在線上了'})
             return None
         rec = self.accounts.get(name)
-        if rec and rec.get('cls') not in CLASSES:
-            rec = None   # 舊版本的角色資料,重新建立
+        if rec and (rec.get('cls') not in CLASSES or 'pets' not in rec):
+            rec = None   # 原型版本 (沒有寵物) 的角色資料,重新建立
         if rec:
             if hash_pw(rec['salt'], pw) != rec['hash']:
                 ws.send({'t': 'err', 'm': '密碼錯誤!'})
