@@ -18,7 +18,9 @@ const T = {
   out: null,              // 成品畫布 (256×256,或像素化的小畫布)
   brush: 'erase', painting: false, viewScale: 1,
   bgInfo: null,
+  loaded: '',             // 目前載入的是哪個目標的哪張原圖 (避免重複自動載入)
 };
+const ZH_FRAME = { attack: '攻擊', hurt: '受傷', sleep: '睡著' };
 
 // ---------- 目標 (要做哪一張) ----------
 function target() {
@@ -33,7 +35,8 @@ function fillTargets() {
   const prev = sel.value;
   sel.innerHTML = Object.entries(names).map(([k, n]) => {
     const has = T.man.files.some(f => f.p === `${kind}/${k}.png`);
-    return `<option value="${k}">${n}${has ? '  ✔有圖' : ''}</option>`;
+    const src = findSrc({ kind, id: k, frame: '' });
+    return `<option value="${k}">${n}${has ? '  ✔有圖' : ''}${src ? '  · 有原圖' : ''}</option>`;
   }).join('');
   if (names[prev]) sel.value = prev;
   $('frame-row').hidden = kind !== 'pets';
@@ -49,11 +52,45 @@ function updateTarget() {
   $('cur-img').style.visibility = cur ? 'visible' : 'hidden';
   $('cur-cap').textContent = cur ? '遊戲裡目前的圖' : '遊戲裡還沒有這張圖';
   $('b-del').disabled = !cur;
-  if (T.src) buildOutput();
+  const src = findSrc(tg);
+  $('srcfind').textContent = src ? `art-src/${src}` : `art-src/ 裡沒有這張的原圖(檔名:${srcNames(tg)[0]}.png)`;
+  if (src && T.loaded !== tg.file + '|' + src) loadSrc(src, tg);
+  else if (T.loaded && !T.loaded.endsWith('|manual') && !T.loaded.startsWith(tg.file + '|')) clearWork();   // 別張的原圖,不能拿來存成這張
+  else if (T.src) buildOutput();
+}
+function clearWork() {
+  T.src = T.auto = T.final = T.out = null;
+  T.loaded = '';
+  workCv = null;
+  $('work-wrap').innerHTML = '<div class="empty-hint">這張還沒有原圖。把原圖放到 art-src/ 後重新整理,或直接拖曳圖片進來。</div>';
+  $('srcinfo').textContent = '';
+  refreshOutput();
+}
+// art-src/ 裡的原圖:檔名用中文名字 (噗噗.png、噗噗_攻擊.png),也接受英文代號 (poring.png、poring_attack.png)
+function srcNames(tg) {
+  const zh = tg.kind === 'pets' ? T.man.species[tg.id] : T.man.npcs[tg.id];
+  const bases = [zh, (zh || '').split(' ').pop(), tg.id].filter(Boolean);
+  const out = [];
+  for (const b of bases) {
+    out.push(b + (tg.frame ? '_' + (ZH_FRAME[tg.frame] || tg.frame) : ''));
+    if (tg.frame) out.push(b + '_' + tg.frame);
+  }
+  return out;
+}
+function findSrc(tg) {
+  if (!T.man || !T.man.src) return null;
+  const want = srcNames(tg).map(n => n.toLowerCase());
+  return T.man.src.find(f => want.includes(f.replace(/\.[^.]+$/, '').toLowerCase())) || null;
+}
+function loadSrc(name, tg) {
+  T.loaded = tg.file + '|' + name;
+  fetch('/api/src?f=' + encodeURIComponent(name)).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(b => loadFile(new File([b], name, { type: b.type || 'image/png' }), 'art-src/'))
+    .catch(() => msg('讀不到 art-src/' + name + '(重開伺服器後再試試)', true));
 }
 
 // ---------- 讀圖 ----------
-function loadFile(file) {
+function loadFile(file, from = '') {
   if (!file || !file.type.startsWith('image/')) return msg('這不是圖片檔。', true);
   const url = URL.createObjectURL(file), img = new Image();
   img.onload = () => {
@@ -65,7 +102,8 @@ function loadFile(file) {
     T.w = w; T.h = h;
     T.src = g.getImageData(0, 0, w, h).data;
     T.edits = new Uint8Array(w * h);
-    $('srcinfo').textContent = `原圖 ${img.width}×${img.height}` + (k < 1 ? `(處理時縮成 ${w}×${h})` : '') + ` · ${file.name || '貼上的圖片'}`;
+    $('srcinfo').textContent = `原圖 ${img.width}×${img.height}` + (k < 1 ? `(處理時縮成 ${w}×${h})` : '') + ` · ${from}${file.name || '貼上的圖片'}`;
+    if (!from) T.loaded = target().file + '|manual';
     URL.revokeObjectURL(url);
     process();
   };

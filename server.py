@@ -2296,8 +2296,17 @@ MIME = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; cha
 #  圖片管線:圖片清單 (/assets.json) 與去背工具的存檔 (/api/art,只接受本機)
 # ============================================================
 ASSETS = os.path.join(PUBLIC, 'assets')
+ART_SRC = os.path.join(ROOT, 'art-src')     # 使用者放 AI 原圖的地方 (不進 git),檔名用中文名字,例如 噗噗.png
 ART_MAX_BYTES = 4 * 1024 * 1024
 PNG_SIG = b'\x89PNG\r\n\x1a\n'
+SRC_EXT = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}
+
+
+def src_files():
+    if not os.path.isdir(ART_SRC):
+        return []
+    return sorted(fn for fn in os.listdir(ART_SRC)
+                  if os.path.splitext(fn)[1].lower() in SRC_EXT and os.path.isfile(os.path.join(ART_SRC, fn)))
 
 
 def asset_manifest():
@@ -2308,7 +2317,7 @@ def asset_manifest():
             for fn in sorted(os.listdir(d)):
                 if fn.lower().endswith('.png'):
                     files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
-    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES),
+    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src_files(),
             'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
             'npcs': {n['c']: n['n'] for n in NPCS}}
 
@@ -2403,6 +2412,13 @@ async def handle_conn(reader, writer, game):
     if path == '/assets.json':
         body = json.dumps(asset_manifest(), ensure_ascii=False).encode('utf-8')
         return await respond(writer, '200 OK', MIME['.json'], body)
+    if path == '/api/src':   # 去背工具讀 art-src/ 裡的原圖 (只接受本機、只能讀清單裡的檔案)
+        name = parse_qs(query).get('f', [''])[0]
+        if not is_local(writer) or name not in src_files():
+            return await respond(writer, '404 Not Found', 'text/plain', b'404 Not Found')
+        with open(os.path.join(ART_SRC, name), 'rb') as f:
+            body = f.read()
+        return await respond(writer, '200 OK', SRC_EXT[os.path.splitext(name)[1].lower()], body)
     if path == '/api/art':
         if method != 'POST':
             return await respond(writer, '405 Method Not Allowed', 'text/plain', b'POST only')
