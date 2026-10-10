@@ -7,9 +7,9 @@
 - 分支:**`feature/phase-2-pet-life`**,還沒 merge 回 main(守則:測試 + 實測 + 使用者確認後才 merge)。
 - plan 第 1~12 項完成(照顧、互動、旅館、助攻、護主、讀圖系統、去背工具)。
 - 測試:`tests/test_phase2.py` 103/103、`tests/test_phase1.py` 88/88。
-- 圖:噗噗四張(主圖、攻擊、受傷、睡著)和小火妖四張都已進遊戲;下一步是定案畫風(Q 版 / 像素化)。
+- 圖:噗噗四張(主圖、攻擊、受傷、睡著)和小火妖四張都已進遊戲;畫風定案為**精緻 Q 版**(第 13 項完成)。
 - prompt 由 `docs/art/gen_prompts.py` 產生,要改 prompt 改那支程式再執行。
-- 剩下:第 13 項試做(小火妖動作圖、畫風還沒定案)、第 14 項實測(動畫還沒親眼看過)、
+- 剩下:第 14 項實測(動畫還沒親眼看過)、
   第 15 項 roadmap 狀態、第 16 項第三階段交接,最後 merge。各項進度寫在 `plan.md`。
 
 ## 開發 / 測試小技巧(這次踩到的)
@@ -33,12 +33,11 @@
 請先閱讀:
 1. CLAUDE.md(開發守則,一定要照著做;注意要在 feature 分支開發)
 2. docs/phase-2/handoff.md(目前狀態與開發小技巧)
-3. docs/phase-2/spec.md 和 docs/phase-2/plan.md(規格與進度,第 13 項之後還沒做完)
+3. docs/phase-2/spec.md 和 docs/phase-2/plan.md(規格與進度,第 14 項之後還沒做完)
 4. docs/art/美術規格.md 和 docs/art/繪圖prompt.md(圖片流程)
 
 目前在 feature/phase-2-pet-life 分支,還沒 merge 回 main。
 接下來:
-- 第 13 項:試做的圖都放進遊戲了,比較 Q 版和像素化,定案畫風並寫回 spec
 - 第 14 項:實測(動畫、泡泡、護主、表演等還沒親眼看過),修 bug、調數值
 - 第 15、16 項:更新 roadmap 狀態,寫第三階段(繁殖與進化)的交接
 - 全部確認沒問題後再 merge 回 main
