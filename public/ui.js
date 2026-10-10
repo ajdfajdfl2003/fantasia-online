@@ -104,6 +104,8 @@ const UI = (() => {
     drawHumanoid(pg, 30, 74, { ...lookOwner(S.cls, S.myName), scale: 3, face: 1 }, 0);
     for (const b of document.querySelectorAll('#menu [data-win]')) b.onclick = () => toggleWin(b.dataset.win);
     el('btn-snd').onclick = toggleSound;
+    el('btn-art').onclick = toggleArt;
+    artLabel();
     el('st-pet').onclick = () => toggleWin('pets');
     el('bp-auto').onchange = e => toggleAuto(e.target.checked);
     for (const w of document.querySelectorAll('.win')) {
@@ -149,6 +151,24 @@ const UI = (() => {
   }
   function closeAll() { for (const n of ['inv', 'pets', 'hatch', 'help', 'dlg', 'shop', 'bank']) closeWin(n); closeMenus(); }
   function toggleSound() { muted = !muted; el('btn-snd').textContent = '音效:' + (muted ? '關' : '開'); }
+  // 美術:圖片 / 程式繪圖 (比較畫風用)
+  function artLabel() {
+    el('btn-art').textContent = '美術:' + (ART.on ? `圖片${ART.count ? ' (' + ART.count + ')' : ''}` : '程式');
+    el('btn-art').title = ART.count ? `public/assets 裡有 ${ART.count} 張圖。沒有圖的角色一律用程式繪圖。` : '還沒有任何圖片,全部用程式繪圖。';
+  }
+  function toggleArt() {
+    ART.on = !ART.on;
+    try { localStorage.setItem('fantasia.art', ART.on ? 'on' : 'off'); } catch (e) { /* 忽略 */ }
+    artChanged();
+  }
+  function artChanged() {
+    artLabel();
+    el('sp-name').dataset.sp = '';   // 讓頭像重畫
+    bpKey = '';
+    status();
+    if (!el('win-pets').hidden) renderPets();
+    if (!el('win-bank').hidden) renderBank();
+  }
 
   function overlay(title, msg, btn, fn, extraHTML = '') {
     el('ov-title').textContent = title;
@@ -743,7 +763,7 @@ const UI = (() => {
   return {
     initLogin, loginError, enterGame, overlay, status, inv, pets, chat, addChat, dialog, shop,
     openHatch, hatchUpdate, hatched, openPets, battleOpen, battleClose, battleAuto, tick,
-    closeMenus, swapMenu, toggleWin, toggleSound, closeAll, petMenu, bank, openBank,
+    closeMenus, swapMenu, toggleWin, toggleSound, closeAll, petMenu, bank, openBank, artChanged,
   };
 })();
 

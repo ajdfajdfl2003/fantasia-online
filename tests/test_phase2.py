@@ -538,7 +538,33 @@ def test_moods(g):
     g.leave_battle(b, p, clock[0])
 
 
+def test_art():
+    print('\n[圖片管線:清單與存檔規則]')
+    orig = server.ASSETS
+    server.ASSETS = os.path.join(T.TMP, 'assets')
+    try:
+        m = server.asset_manifest()
+        check('沒有圖時清單是空的,帶有顯示大小', m['files'] == [] and m['art']['poring']['size'] == 48 and 'dragon' in m['species'])
+        png = server.PNG_SIG + b'fake-png-body'
+        ok, _ = server.save_art('pets/poring.png', png)
+        ok2, _ = server.save_art('pets/imp_attack.png', png)
+        ok3, _ = server.save_art('npcs/keeper.png', png)
+        check('可以存主圖、動作圖、NPC 圖', ok and ok2 and ok3)
+        m = server.asset_manifest()
+        check('清單列出存好的圖', sorted(f['p'] for f in m['files']) == ['npcs/keeper.png', 'pets/imp_attack.png', 'pets/poring.png'])
+        bad = ['pets/../server.py', 'pets/unknown.png', 'pets/poring_dance.png', 'other/poring.png', 'pets/poring.jpg',
+               '../poring.png', 'pets/sub/poring.png', 'npcs/nobody.png']
+        check('不符規格的檔名一律拒絕', all(server.art_path(n) is None for n in bad), [n for n in bad if server.art_path(n)])
+        ok, _ = server.save_art('pets/slime.png', b'not a png')
+        check('不是 PNG 的資料拒絕', not ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'slime.png')))
+        ok, _ = server.save_art('pets/poring.png', b'', delete=True)
+        check('可以刪除圖片 (退回程式繪圖)', ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'poring.png')))
+    finally:
+        server.ASSETS = orig
+
+
 def main():
+    test_art()
     g = server.Game()
     test_start_values(g)
     test_decay(g)

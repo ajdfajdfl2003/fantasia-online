@@ -318,12 +318,96 @@ function drawMoodBubble(g, kind, x, y, t) {
 // ============================================================
 // 每種生物頭頂大約的高度 (像素),用來放名字、血條
 const CREATURE_H = { poring: 26, slime: 28, imp: 40, goblin: 44, wolf: 36, fox: 38, skeleton: 50, dove: 44, bat: 44, griffin: 58, drake: 52, dragon: 110 };
-function creatureH(sp) { return CREATURE_H[sp] || 40; }
+
+// ============================================================
+//  圖片 (public/assets/):有圖用圖,沒圖退回程式繪圖
+//  規格見 docs/art/美術規格.md:256×256 透明 PNG、腳底貼齊底邊正中央、朝右
+// ============================================================
+const ART = { on: true, imgs: {}, meta: {}, sizes: {}, count: 0, onload: null };
+try { ART.on = localStorage.getItem('fantasia.art') !== 'off'; } catch (e) { /* 沒有 localStorage 也沒關係 */ }
+
+// 量出圖片實際內容的範圍 (用來算頭頂高度、影子寬度)
+function measureArt(img) {
+  const w = img.width, h = img.height, c = mkCanvas(w, h), g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  let top = h, l = w, r = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (d[(y * w + x) * 4 + 3] > 24) { if (y < top) top = y; if (x < l) l = x; if (x > r) r = x; }
+  }
+  if (r < l) { top = 0; l = 0; r = w - 1; }
+  return { top: top / h, l: l / w, r: (r + 1) / w, pixel: w < 256 };
+}
+function loadArt(sizes) {
+  ART.sizes = sizes || {};
+  return fetch('/assets.json', { cache: 'no-store' }).then(r => r.json()).then(m => {
+    ART.sizes = m.art || ART.sizes;
+    return Promise.all(m.files.map(f => new Promise(done => {
+      const img = new Image(), key = f.p.replace(/\.png$/i, '');
+      img.onload = () => { ART.imgs[key] = img; ART.meta[key] = measureArt(img); done(); };
+      img.onerror = () => done();   // 讀不到就算了,退回程式繪圖
+      img.src = '/assets/' + f.p + '?v=' + f.v;
+    })));
+  }).then(() => {
+    ART.count = Object.keys(ART.imgs).filter(k => !k.includes('_')).length;
+    if (ART.onload) ART.onload();
+  }).catch(() => {});
+}
+// 這個角色現在要用哪張圖 (可選動作圖:攻擊 / 受傷 / 睡著)
+function artFor(key, o) {
+  if (!ART.on || !ART.imgs[key]) return null;
+  if (o.atk > 0 && ART.imgs[key + '_attack']) return ART.imgs[key + '_attack'];
+  if (o.hurt && ART.imgs[key + '_hurt']) return ART.imgs[key + '_hurt'];
+  if (o.sleep && ART.imgs[key + '_sleep']) return ART.imgs[key + '_sleep'];
+  return ART.imgs[key];
+}
+// 圖片實際畫出來的邊長:像素圖用整數倍放大,一般圖縮放到 size
+function artDrawSize(key, img, size) { return ART.meta[key] && ART.meta[key].pixel ? img.width * Math.max(1, Math.round(size / img.width)) : size; }
+// 把程式動畫套在圖片上:呼吸、走路彈跳、浮空、攻擊前傾、受傷閃白、倒下變灰、朝左翻轉
+function drawArt(g, key, x, y, o, size, hover) {
+  const img = artFor(key, o);
+  if (!img) return false;
+  const meta = ART.meta[key], t = o.t || 0, face = o.face || 1, sw = o.atk || 0, id = o.id || 0;
+  const ds = artDrawSize(key, img, size);
+  const breathe = Math.sin(t / 1000 * 3 + id) * 0.025;
+  const hop = o.walk ? Math.abs(Math.sin(t / 1000 * 10)) * 3 : 0;
+  const hov = hover ? hover + Math.sin(t / 300 + id) * 2.5 : 0;
+  const lunge = sw > 0 ? Math.sin(sw * Math.PI) : 0;
+  g.save();
+  g.translate(Math.round(x), Math.round(y));
+  const cw = (meta.r - meta.l) * ds;
+  shadow(g, Math.max(6, cw * 0.36), Math.max(2, cw * 0.1), hover ? 0.2 : 0.28);
+  g.translate(lunge * 5 * face, -hop - hov);
+  g.scale(face < 0 ? -1 : 1, 1);
+  if (lunge) { g.translate(0, -ds * 0.3); g.rotate(lunge * 0.14); g.translate(0, ds * 0.3); }
+  g.scale(1 - breathe * 0.6, 1 + breathe);
+  if (o.hurt) g.filter = 'brightness(2.4)';
+  else if (o.ko) g.filter = 'grayscale(1)';
+  g.imageSmoothingEnabled = !meta.pixel;
+  if (!meta.pixel) g.imageSmoothingQuality = 'high';
+  g.drawImage(img, -ds / 2, -ds, ds, ds);
+  g.restore();
+  return true;
+}
+// 頭頂高度 (放名字、血條、泡泡):有圖就依圖片內容計算
+function creatureH(sp) {
+  const key = 'pets/' + sp, img = ART.on && ART.imgs[key];
+  if (img) {
+    const a = ART.sizes[sp] || {}, ds = artDrawSize(key, img, a.size || 64);
+    return Math.round((1 - ART.meta[key].top) * ds + (a.hover || 0));
+  }
+  return CREATURE_H[sp] || 40;
+}
+function drawNpcArt(g, cls, x, y, face, t) {
+  return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
+}
 
 function drawCreature(g, sp, x, y, o) {
   const t = o.t || 0, sw = o.atk || 0, face = o.face || 1;
   g.save();
   if (o.ko) { g.globalAlpha *= 0.45; }
+  const a = ART.sizes[sp];
+  if (a && drawArt(g, 'pets/' + sp, x, y, o, a.size, a.hover || 0)) { g.restore(); return; }
   switch (sp) {
     case 'poring': drawBlob(g, x, y, '#f49ac0', t, 1, o.id || 0, sw); break;
     case 'slime': drawBlob(g, x, y, '#6ccb4c', t, 1.15, o.id || 0, sw); break;

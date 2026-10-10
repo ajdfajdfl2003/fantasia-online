@@ -102,6 +102,8 @@ function startGame(m) {
     foods: m.foods || [], tasteNames: m.tasteNames || {}, care: m.care || {}, art: m.art || {}, interact: m.interact || {} });
   cv = $('#view'); ctx = cv.getContext('2d'); mm = $('#minimap'); mmc = mm.getContext('2d');
   paintTrees(); buildMinimap();
+  ART.onload = () => UI.artChanged();
+  loadArt(m.art);
   UI.enterGame(m);
   bindInput(); resize();
   addEventListener('resize', resize);
@@ -596,7 +598,10 @@ function render(t) {
     if (s.img) ctx.drawImage(s.img, s.sx, s.sy);
     else if (s.e) drawEntity(s.e, t);
     else if (s.f) drawFollower(s.f, s.f.x * TILE + ox, s.f.y * TILE + oy + 8, t, s.pid);
-    else drawHumanoid(ctx, s.n.x * TILE + ox, s.n.y * TILE + oy + 8, { ...NPC_LOOK[s.n.c], face: me && me.rx < s.n.x ? -1 : 1 }, t);
+    else {
+      const nx = s.n.x * TILE + ox, ny = s.n.y * TILE + oy + 8, nf = me && me.rx < s.n.x ? -1 : 1;
+      if (!drawNpcArt(ctx, s.n.c, nx, ny, nf, t)) drawHumanoid(ctx, nx, ny, { ...NPC_LOOK[s.n.c], face: nf }, t);
+    }
   }
   for (const rb of S.battles.values()) drawBattleUnits(rb, t);
   drawDying(t);

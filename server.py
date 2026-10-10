@@ -22,7 +22,7 @@ import struct
 import sys
 import time
 import traceback
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote
 
 from game_data import (ART, ART_FRAMES, BOSS, CARE, CLASSES, EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS,
                        ENCOUNTER_RATE, FOODS, HATCH_HINTS, HATCH_TIME, HATCH_WARMUP, INTERACT, ITEMS, PET_SKILLS,
@@ -2292,6 +2292,78 @@ MIME = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; cha
         '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon',
         '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml'}
 
+# ============================================================
+#  圖片管線:圖片清單 (/assets.json) 與去背工具的存檔 (/api/art,只接受本機)
+# ============================================================
+ASSETS = os.path.join(PUBLIC, 'assets')
+ART_MAX_BYTES = 4 * 1024 * 1024
+PNG_SIG = b'\x89PNG\r\n\x1a\n'
+
+
+def asset_manifest():
+    files = []
+    for sub in ('pets', 'npcs'):
+        d = os.path.join(ASSETS, sub)
+        if os.path.isdir(d):
+            for fn in sorted(os.listdir(d)):
+                if fn.lower().endswith('.png'):
+                    files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
+    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES),
+            'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
+            'npcs': {n['c']: n['n'] for n in NPCS}}
+
+
+def art_path(name):
+    """去背工具要存的檔名:只接受 pets/<種族>[_動作].png 或 npcs/<NPC 類別>.png,回傳完整路徑或 None"""
+    if not isinstance(name, str) or not name.endswith('.png') or name.count('/') != 1:
+        return None
+    sub, fn = name[:-4].split('/')
+    if sub == 'pets':
+        base, _, frame = fn.partition('_')
+        if (base not in SPECIES and base != 'dragon') or (frame and frame not in ART_FRAMES):
+            return None
+    elif sub == 'npcs':
+        if fn not in {n['c'] for n in NPCS}:
+            return None
+    else:
+        return None
+    return os.path.join(ASSETS, sub, fn + '.png')
+
+
+def save_art(name, data, delete=False):
+    """存 (或刪除) 一張圖。回傳 (成功, 訊息)"""
+    full = art_path(name)
+    if not full:
+        return False, '檔名不符合規格'
+    if delete:
+        if os.path.isfile(full):
+            os.remove(full)
+        return True, '已刪除 ' + name
+    if not data.startswith(PNG_SIG) or len(data) > ART_MAX_BYTES:
+        return False, '不是 PNG 圖檔,或檔案太大'
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    tmp = full + '.tmp'
+    with open(tmp, 'wb') as f:
+        f.write(data)
+    os.replace(tmp, full)
+    return True, '已存到 public/assets/' + name
+
+
+def is_local(writer):
+    peer = writer.get_extra_info('peername')
+    host = peer[0] if peer else ''
+    return host in ('127.0.0.1', '::1', '::ffff:127.0.0.1')
+
+
+async def respond(writer, status, ctype, body):
+    writer.write(('HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nCache-Control: no-cache\r\n'
+                  'Connection: close\r\n\r\n' % (status, ctype, len(body))).encode() + body)
+    try:
+        await writer.drain()
+    except Exception:
+        pass
+    writer.close()
+
 
 async def handle_conn(reader, writer, game):
     try:
@@ -2326,7 +2398,25 @@ async def handle_conn(reader, writer, game):
             pass
         return
 
-    path = unquote(path.split('?', 1)[0])
+    path, _, query = path.partition('?')
+    path = unquote(path)
+    if path == '/assets.json':
+        body = json.dumps(asset_manifest(), ensure_ascii=False).encode('utf-8')
+        return await respond(writer, '200 OK', MIME['.json'], body)
+    if path == '/api/art':
+        if method != 'POST':
+            return await respond(writer, '405 Method Not Allowed', 'text/plain', b'POST only')
+        if not is_local(writer):
+            return await respond(writer, '403 Forbidden', MIME['.json'],
+                                 json.dumps({'ok': False, 'msg': '只接受本機 (localhost) 的連線'}, ensure_ascii=False).encode('utf-8'))
+        q = parse_qs(query)
+        n = int(headers.get('content-length', '0') or 0)
+        if n > ART_MAX_BYTES:
+            ok, msg = False, '檔案太大'
+        else:
+            data = await reader.readexactly(n) if n > 0 else b''
+            ok, msg = save_art(q.get('f', [''])[0], data, delete=q.get('del', [''])[0] == '1')
+        return await respond(writer, '200 OK', MIME['.json'], json.dumps({'ok': ok, 'msg': msg}, ensure_ascii=False).encode('utf-8'))
     if path == '/':
         path = '/index.html'
     full = os.path.normpath(os.path.join(PUBLIC, path.lstrip('/')))
@@ -2336,13 +2426,7 @@ async def handle_conn(reader, writer, game):
         with open(full, 'rb') as f:
             body = f.read()
         status, ctype = '200 OK', MIME.get(os.path.splitext(full)[1].lower(), 'application/octet-stream')
-    writer.write(('HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nCache-Control: no-cache\r\n'
-                  'Connection: close\r\n\r\n' % (status, ctype, len(body))).encode() + body)
-    try:
-        await writer.drain()
-    except Exception:
-        pass
-    writer.close()
+    await respond(writer, status, ctype, body)
 
 
 async def main():
