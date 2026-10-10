@@ -544,7 +544,8 @@ def test_art():
     server.ASSETS = os.path.join(T.TMP, 'assets')
     try:
         m = server.asset_manifest()
-        check('沒有圖時清單是空的,帶有顯示大小', m['files'] == [] and m['art']['poring']['size'] == 48 and 'dragon' in m['species'])
+        check('沒有圖時清單是空的,帶有顯示大小', m['files'] == [] and m['art']['poring']['size'] == gd.ART['poring']['size']
+              and 'dragon' in m['species'])
         png = server.PNG_SIG + b'fake-png-body'
         ok, _ = server.save_art('pets/poring.png', png)
         ok2, _ = server.save_art('pets/imp_attack.png', png)
@@ -559,6 +560,16 @@ def test_art():
         check('不是 PNG 的資料拒絕', not ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'slime.png')))
         ok, _ = server.save_art('pets/poring.png', b'', delete=True)
         check('可以刪除圖片 (退回程式繪圖)', ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'poring.png')))
+        # art-src/:使用者放原圖的地方,只列出圖片檔
+        orig_src = server.ART_SRC
+        server.ART_SRC = os.path.join(T.TMP, 'art-src')
+        os.makedirs(server.ART_SRC, exist_ok=True)
+        for fn in ('噗噗.png', '小火妖_攻擊.jpg', 'notes.txt'):
+            open(os.path.join(server.ART_SRC, fn), 'wb').write(b'x')
+        check('art-src 只列出圖片 (中文檔名也可以)', server.src_files() == ['噗噗.png', '小火妖_攻擊.jpg'] or
+              sorted(server.src_files()) == sorted(['噗噗.png', '小火妖_攻擊.jpg']), server.src_files())
+        check('清單帶有 art-src 的原圖', sorted(server.asset_manifest()['src']) == sorted(['噗噗.png', '小火妖_攻擊.jpg']))
+        server.ART_SRC = orig_src
     finally:
         server.ASSETS = orig
 

@@ -398,6 +398,13 @@ function creatureH(sp) {
   }
   return CREATURE_H[sp] || 40;
 }
+// 身體寬度 (跟隨距離用):有圖就依圖片內容計算
+const CREATURE_W = { poring: 22, slime: 26, imp: 24, goblin: 22, wolf: 36, fox: 36, skeleton: 22, dove: 28, bat: 30, griffin: 48, drake: 44, dragon: 140 };
+function creatureW(sp) {
+  const key = 'pets/' + sp, img = ART.on && ART.imgs[key];
+  if (img) { const m = ART.meta[key]; return Math.round((m.r - m.l) * artDrawSize(key, img, (ART.sizes[sp] || {}).size || 64)); }
+  return CREATURE_W[sp] || 26;
+}
 function drawNpcArt(g, cls, x, y, face, t) {
   return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
 }

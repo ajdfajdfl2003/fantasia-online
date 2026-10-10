@@ -322,11 +322,12 @@ def sync_gain(base, bond):
 #  美術:圖片在遊戲中的顯示大小 (256×256 畫布在畫面上的邊長,px) 與浮空高度
 #  圖片放在 public/assets/pets/<種族>.png,規格見 docs/art/美術規格.md
 # ============================================================
+#  2026-10-10 實測:原本 (噗噗 48) 跟人物比起來太大,全部縮小約 30%,噗噗約等於程式繪圖的大小
 ART = {
-    'poring': {'size': 48}, 'slime': {'size': 52}, 'imp': {'size': 56, 'hover': 8}, 'goblin': {'size': 66},
-    'wolf': {'size': 86}, 'skeleton': {'size': 72}, 'dove': {'size': 60, 'hover': 16}, 'fox': {'size': 86},
-    'bat': {'size': 60, 'hover': 18}, 'griffin': {'size': 110}, 'drake': {'size': 96}, 'dragon': {'size': 220},
-    'npc': {'size': 72},
+    'poring': {'size': 34}, 'slime': {'size': 36}, 'imp': {'size': 40, 'hover': 6}, 'goblin': {'size': 46},
+    'wolf': {'size': 60}, 'skeleton': {'size': 52}, 'dove': {'size': 44, 'hover': 12}, 'fox': {'size': 60},
+    'bat': {'size': 44, 'hover': 14}, 'griffin': {'size': 78}, 'drake': {'size': 68}, 'dragon': {'size': 160},
+    'npc': {'size': 56},
 }
 ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.png …
 

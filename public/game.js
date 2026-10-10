@@ -536,7 +536,9 @@ function updateFollowers(dt) {
   for (const e of S.ents.values()) {
     if (e.k !== 'p' || !e.pt || e.b) { S.followers.delete(e.i); continue; }
     let f = S.followers.get(e.i);
-    const tx = e.rx - (e.f || 1) * 0.85, ty = e.ry - 0.1;
+    // 跟在主人身後:主人半個身體 (12px) + 寵物半個身體 + 8px 間隔
+    const gap = Math.max(0.85, (12 + creatureW(e.pt) / 2 + 8) / TILE);
+    const tx = e.rx - (e.f || 1) * gap, ty = e.ry - 0.1;
     if (!f || f.sp !== e.pt) { f = { x: tx, y: ty, sp: e.pt, face: e.f || 1, walk: false }; S.followers.set(e.i, f); }
     f.mood = e.pm || '';
     if (f.anim && now > f.anim.t0 + f.anim.dur) f.anim = null;
