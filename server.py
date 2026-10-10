@@ -926,7 +926,9 @@ class Game:
                 joy -= CARE['joy_hungry'] * h
             self.add_joy(pt, joy)
             uid = pt['uid']
-            if pt['food'] <= 0 and pt['joy'] <= 0 and not p.battle:
+            if pt['food'] <= 0 and pt['joy'] <= 0:
+                if p.battle:   # 戰鬥中暫停計時 (不歸零)
+                    continue
                 s = p.sulk.get(uid, 0.0) + dt
                 p.sulk[uid] = s
                 if s - dt < CARE['sulk_warn'] <= s:
@@ -2089,9 +2091,10 @@ class Game:
             self.boss['alive'] = True
             self.broadcast_sys('大地在震動……炎龍在北方焦土甦醒了!', 'ann')
         if now - self.last_regen >= 1.0:
+            el = min(5.0, now - self.last_regen)
             self.last_regen = now
             for p in list(self.players.values()):
-                self.care_tick(p, now, 1.0)
+                self.care_tick(p, now, el)
             for p in self.players.values():
                 if p.battle:
                     continue
