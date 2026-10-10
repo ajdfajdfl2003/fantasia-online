@@ -59,13 +59,16 @@ NPCS = [
     {'i': 3, 'n': '修女 瑪莉', 'x': 44.5, 'y': 52.5, 'c': 'healer'},
     {'i': 4, 'n': '傳送師 奧茲', 'x': 51.5, 'y': 52.5, 'c': 'wizard'},
     {'i': 5, 'n': '孵化屋 葛莉絲婆婆', 'x': 42.5, 'y': 48.5, 'c': 'hatcher'},
+    {'i': 6, 'n': '寵物旅館 蘿絲', 'x': 53.5, 'y': 50.5, 'c': 'keeper'},
 ]
 NPC_DLG = {
     'elder': ('歡迎來到艾爾文村,年輕的訓練師!\n'
               '村外的野地藏著許多野生寵物,走著走著就會遇上牠們。\n'
               '把牠們打到虛弱,再丟出「封印卡」,就能收服成自己的夥伴。\n'
-              '越往外走寵物越強……北方焦土還沉睡著一頭炎龍。', [['close', '我知道了']]),
-    'merchant': ('歡迎光臨~封印卡、藥水、復活草都有喔!\n出門抓寵物,封印卡可要帶夠!', [['shop', '我要買東西'], ['close', '不用了']]),
+              '越往外走寵物越強……北方焦土還沉睡著一頭炎龍。\n'
+              '對了,寵物也會肚子餓、會鬧脾氣。好好照顧牠們,牠們也會拚命保護你。', [['close', '我知道了']]),
+    'merchant': ('歡迎光臨~封印卡、藥水、復活草都有喔!\n寵物的食物也有賣,每種寵物愛吃的東西不一樣喔。\n'
+                 '出門抓寵物,封印卡可要帶夠!', [['shop', '我要買東西'], ['close', '不用了']]),
     'healer': ('願女神祝福你與你的夥伴們。\n需要我為你們治療嗎?', [['heal', '請治療我和寵物 (免費)'], ['close', '不用了']]),
     'wizard': ('我可以用魔法把你傳送到遠方……\n當然,要收一點點費用。',
                [['tp:%d' % i, '%s (%d 金幣)' % (t[0], t[3])] for i, t in enumerate(TELEPORTS)] + [['close', '算了']]),
@@ -73,6 +76,9 @@ NPC_DLG = {
                 '我也會收購寵物,不想養的可以賣給我。',
                 [['eggs', '購買寵物蛋'], ['hatch', '我要孵蛋'], ['sellpet', '賣寵物'], ['hint', '孵蛋有什麼訣竅?'],
                  ['close', '下次再說']]),
+    'keeper': ('歡迎來到寵物旅館~我是老闆娘蘿絲。\n帶不下的寵物可以寄放在這裡,免費喔!\n'
+               '住在旅館的孩子每天都在後院玩,心情會慢慢變好。',
+               [['bank', '寄放 / 領回寵物'], ['bankinfo', '旅館是做什麼的?'], ['close', '下次再說']]),
 }
 
 # ============================================================
@@ -676,6 +682,10 @@ class Game:
             return self.pet_sell(p, m.get('i'))
         if t == 'feed':
             return self.feed(p, m.get('i'), m.get('item'), now)
+        if t == 'bput':
+            return self.bank_put(p, m.get('i'))
+        if t == 'bget':
+            return self.bank_get(p, m.get('i'))
         if t == 'pact':
             return self.pet_interact(p, m.get('i'), str(m.get('a', '')), now)
         if t == 'use':
@@ -935,6 +945,41 @@ class Game:
             if p.bank:
                 p.bank_dirty = True
 
+    # ---------- 寵物旅館 ----------
+    def bank_put(self, p, i):
+        pt = self.get_pet(p, i)
+        if pt is None or p.battle:
+            return
+        if not self.near_npc(p, 'keeper'):
+            return self.sys(p, '要寄放寵物,請到村裡的寵物旅館找蘿絲。')
+        if len(p.pets) <= 1:
+            return self.sys(p, '身上至少要留一隻寵物喔。')
+        if sum(1 for x in p.bank if not x.get('sulk')) >= CARE['bank_max']:
+            return self.sys(p, '旅館已經住滿 %d 隻了。' % CARE['bank_max'])
+        p.remove_pet(i)
+        d = derive(pt['lv'], pt['st'])
+        pt['hp'], pt['mp'] = d['mhp'], d['mmp']
+        p.bank.append(pt)
+        p.sulk.pop(pt['uid'], None)
+        p.bank_dirty = True
+        self.sys(p, '把 %s 寄放在寵物旅館了。' % pt['n'])
+
+    def bank_get(self, p, i):
+        if not isinstance(i, int) or not 0 <= i < len(p.bank) or p.battle:
+            return
+        if not self.near_npc(p, 'keeper'):
+            return self.sys(p, '要領回寵物,請到村裡的寵物旅館找蘿絲。')
+        if len(p.pets) >= PET_MAX:
+            return self.sys(p, '身上已經有 %d 隻寵物了,先寄放一隻再領吧。' % PET_MAX)
+        pt = p.bank.pop(i)
+        p.pets.append(pt)
+        p.pets_dirty = p.bank_dirty = True
+        if pt.get('sulk'):
+            pt['sulk'] = False
+            self.sys(p, '蘿絲:「%s 已經不生氣了,以後要好好照顧牠喔。」' % pt['n'])
+        else:
+            self.sys(p, '從寵物旅館領回了 %s。' % pt['n'])
+
     def pets_msg(self, p, now):
         idle = now - p.idle_since if not p.battle else 0
         out = []
@@ -1098,6 +1143,15 @@ class Game:
         elif act == 'hint' and c == 'hatcher':
             text = '\n'.join(HATCH_HINTS.values()) + '\n\n蛋覺得舒服的時候,心跳會變得又穩又強。\n前 20 秒是預熱,慢慢找,不會影響結果喔。'
             p.ws.send({'t': 'dlg', 'i': n['i'], 'n': n['n'], 'text': text, 'opts': [['close', '謝謝婆婆']]})
+        elif act == 'bank' and c == 'keeper':
+            p.bank_dirty = True
+            p.ws.send({'t': 'bankui'})
+        elif act == 'bankinfo' and c == 'keeper':
+            text = ('身上最多帶 %d 隻寵物,其他的可以寄放在旅館,最多 %d 隻。\n'
+                    '住在這裡的孩子不會肚子餓,HP 和 MP 會補滿,心情也會慢慢變好。\n'
+                    '要是有寵物賭氣跑來我這裡……別擔心,我會先餵牠吃點東西,你再來帶牠回去就好。'
+                    % (PET_MAX, CARE['bank_max']))
+            p.ws.send({'t': 'dlg', 'i': n['i'], 'n': n['n'], 'text': text, 'opts': [['close', '謝謝蘿絲']]})
         elif act == 'heal' and c == 'healer':
             p.hp, p.mp = p.mhp, p.mmp
             for pt in p.pets:
@@ -1976,6 +2030,9 @@ class Game:
             if p.pets_dirty:
                 p.pets_dirty = False
                 p.ws.send(self.pets_msg(p, now))
+            if p.bank_dirty:
+                p.bank_dirty = False
+                p.ws.send({'t': 'bank', 'bank': [pet_view(pt) for pt in p.bank], 'max': CARE['bank_max']})
 
     async def run(self):
         nxt = time.perf_counter()
