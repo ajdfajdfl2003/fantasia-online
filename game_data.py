@@ -200,7 +200,8 @@ CLASSES = {
 }
 
 STATUS_NAMES = {'atkup': '攻↑', 'defup': '防↑', 'matkup': '魔↑', 'atkdown': '攻↓', 'defdown': '防↓',
-                'slow': '緩', 'haste': '速', 'sleep': '睡', 'poison': '毒', 'guard': '防禦', 'shield': '盾'}
+                'slow': '緩', 'haste': '速', 'sleep': '睡', 'poison': '毒', 'guard': '防禦', 'shield': '盾',
+                'protect': '護主'}
 
 # ============================================================
 #  道具

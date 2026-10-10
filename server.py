@@ -48,7 +48,6 @@ INV_MAX = 24
 PET_MAX = 5        # 身上最多帶幾隻寵物 (封印卡欄位)
 PARTY_MAX = 6      # 一場戰鬥最多幾位玩家
 PET_TIMEOUT = 6.0  # 寵物時間棒集滿後幾秒沒下指令就自動普攻
-OWNER_LINK = 0.15  # 寵物受到的傷害有多少比例會連動到主人
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
 TELEPORTS = [('南方草原', 48.5, 66.5, 50), ('東方森林', 74.5, 48.5, 120), ('北方焦土', 72.5, 15.5, 300)]
@@ -362,8 +361,10 @@ class Unit:
         self.spd, self.eva = 20.0, 0.0
         self.bar, self.ready_at = 0.0, None
         self.status, self.shield, self.next_poison = {}, 0, 0.0
+        self.stmul = {}           # 狀態的強度 (助攻加成用,預設 1)
         self.skills, self.alive, self.row, self.q = [], True, 0, 0
         self.boss, self.acts, self.exp, self.gold = False, 0, 0, 0
+        self.sync, self.surge = 0.0, False   # 默契量表、助攻發動後的下一招
 
     def set_stats(self, d):
         self.mhp, self.mmp = d['mhp'], d['mmp']
@@ -373,12 +374,7 @@ class Unit:
     def rate(self):
         if not self.alive or self.ready_at is not None or 'sleep' in self.status:
             return 0.0
-        r = self.spd
-        if 'haste' in self.status:
-            r *= 1.35
-        if 'slow' in self.status:
-            r *= 0.6
-        return r
+        return self.spd * smod(self, 'haste', 1.35) * smod(self, 'slow', 0.6)
 
 
 class Battle:
@@ -402,7 +398,10 @@ class Battle:
 
 
 def smod(u, key, k):
-    return k if key in u.status else 1.0
+    """狀態倍率。助攻加成會放大增加的幅度:例如攻↑ 1.3,加成 ×1.5 → 1.45"""
+    if key not in u.status:
+        return 1.0
+    return 1 + (k - 1) * u.stmul.get(key, 1.0)
 
 
 # ============================================================
@@ -1001,6 +1000,7 @@ class Game:
             pt['pts'] += SPECIES[pt['sp']]['grow']
             d = derive(pt['lv'], pt['st'])
             pt['hp'], pt['mp'] = d['mhp'], d['mmp']
+            self.add_joy(pt, CARE['levelup'][0])
             up = True
             self.sys(p, '%s 升到了 Lv.%d!獲得 %d 點能力點數。' % (pt['n'], pt['lv'], SPECIES[pt['sp']]['grow']))
             for sk in set(pet_skills(pt['sp'], pt['lv'])) - old:
@@ -1286,9 +1286,13 @@ class Game:
         u = Unit(self.nid(), 0, 'p', pt['n'], pt['lv'])
         u.sp, u.el, u.pid, u.pet, u.q = pt['sp'], SPECIES[pt['sp']]['el'], p.id, pt, pt['q']
         u.set_stats(derive(pt['lv'], pt['st']))
+        if pt['food'] < CARE['hungry']:   # 肚子餓:能力下降
+            k = CARE['hungry_mult']
+            u.atk, u.matk, u.df, u.mdf = int(u.atk * k), int(u.matk * k), int(u.df * k), int(u.mdf * k)
         u.hp, u.mp = min(pt['hp'], u.mhp), min(pt['mp'], u.mmp)
         u.skills = pet_skills(pt['sp'], pt['lv'])
         u.bar = random.uniform(35, 65)
+        u.sync = pt['sync']
         return u
 
     def boss_unit(self, nplayers):
@@ -1390,9 +1394,26 @@ class Game:
         if u and u.pet is not None:
             u.pet['hp'] = max(0, int(u.hp)) if u.alive else 0
             u.pet['mp'] = max(0, int(u.mp))
+            u.pet['sync'] = round(u.sync, 2)
+
+    def battle_care(self, b, p, result):
+        """戰鬥結束時的照顧數值:上場過的寵物消耗飽食度,打贏開心、打輸難過"""
+        fought = b.fought.get(p.id, ())
+        for pt in p.pets:
+            if pt['uid'] not in fought:
+                continue
+            self.add_food(p, pt, -CARE['food_battle'])
+            if result in ('win', 'lose'):
+                joy, bond = CARE[result]
+                if result == 'lose' or pt['hp'] > 0:
+                    self.add_joy(pt, joy)
+                    self.add_bond(pt, bond)
+        p.pets_dirty = True
+        p.idle_since = time.time()
 
     def leave_battle(self, b, p, now):
         self.sync_pet(b, p)
+        self.battle_care(b, p, 'flee')
         ou = b.units.get(b.ou.get(p.id))
         if ou:
             p.hp, p.mp = max(1, int(ou.hp)), max(0, int(ou.mp))
@@ -1421,7 +1442,7 @@ class Game:
         if kind == 'phys' and random.random() < tgt.eva:
             self.bfx(b, 'hit', id=tgt.id, v=0, s=src.id)
             return 0
-        guard_def = smod(tgt, 'defup', 1.4) * smod(tgt, 'defdown', 0.7)
+        guard_def = smod(tgt, 'defup', 1.4) * smod(tgt, 'defdown', 0.7) * smod(tgt, 'protect', CARE['guard_def'])
         if kind == 'phys':
             atk = src.atk * smod(src, 'atkup', 1.3) * smod(src, 'atkdown', 0.8)
             df = 0 if pierce else tgt.df * guard_def
@@ -1453,9 +1474,11 @@ class Game:
                 tgt.status.pop('shield', None)
         tgt.hp -= dmg
         tgt.status.pop('sleep', None)
-        if tgt.kind == 'p' and dmg > 0:      # 寵物受傷,主人也會間接受傷
+        if tgt.kind == 'p' and dmg > 0:      # 寵物受傷,主人也會間接受傷 (親密度越高越少;護主時不會)
+            self.add_sync(tgt, CARE['sync_hit'])
             ou = b.units.get(b.ou.get(tgt.pid))
-            link = int(dmg * OWNER_LINK)
+            bond = tgt.pet['bond'] if tgt.pet is not None else 0
+            link = 0 if 'protect' in tgt.status else int(dmg * link_ratio(bond))
             if ou and ou.alive and link > 0:
                 ou.hp -= link
                 self.bfx(b, 'hit', id=ou.id, v=link, link=1)
@@ -1486,10 +1509,17 @@ class Game:
                 for item, chance in (('red_potion', 0.1), ('seal_card', 0.06), ('blue_potion', 0.04), ('revive_herb', 0.02)):
                     if random.random() < chance:
                         b.loot.append(item)
+                if random.random() < CARE['food_drop']:   # 掉落牠最愛的食物
+                    love = SPECIES[u.sp].get('love')
+                    b.loot.append(random.choice(list(FOODS)) if love == '*' or love not in FOODS else love)
             b.units.pop(u.id, None)
         elif u.kind == 'p':
+            u.surge = False
             if u.pet is not None:
                 u.pet['hp'] = 0
+                joy, bond = CARE['ko']
+                self.add_joy(u.pet, joy)
+                self.add_bond(u.pet, bond)
             p = self.players.get(u.pid)
             if p:
                 self.sys(p, '%s 倒下了!快換一隻寵物,或用復活草救牠!' % u.name, 'err')
@@ -1507,39 +1537,108 @@ class Game:
         u.bar = 0
         u.ready_at = None
         u.acts += 1
+        if u.kind == 'p':
+            self.add_sync(u, CARE['sync_act'])
 
     def can_act(self, u):
         return u is not None and u.alive and u.ready_at is not None and 'sleep' not in u.status
 
+    # ----- 親密度:默契、助攻、不聽指令 -----
+    def add_sync(self, u, base):
+        """默契量表:親密度 40 以上才會累積"""
+        if u.pet is None or u.pet['bond'] < CARE['sync_bond'] or u.sync >= 100:
+            return
+        u.sync = min(100.0, u.sync + sync_gain(base, u.pet['bond']))
+
+    def take_surge(self, u):
+        """助攻發動後的下一招:回傳威力倍率"""
+        if u.surge:
+            u.surge = False
+            return CARE['sync_power']
+        return 1.0
+
+    def assist(self, b, p, now):
+        """助攻 (主人的免費行動):默契滿了,寵物立刻行動,下一招威力 ×1.5、不耗 MP"""
+        ou = b.units.get(b.ou.get(p.id))
+        u = b.units.get(b.pu.get(p.id))
+        if not ou or not ou.alive or not u or not u.alive or u.pet is None:
+            return
+        if u.pet['bond'] < CARE['sync_bond']:
+            return self.sys(p, '親密度要 %d 以上才能助攻。' % CARE['sync_bond'])
+        if u.sync < 100 or 'sleep' in u.status or u.surge:
+            return
+        u.sync = 0.0
+        u.surge = True
+        u.bar = 100
+        if u.ready_at is None:
+            u.ready_at = now
+        self.bfx(b, 'assist', id=u.id, o=ou.id)
+
+    def pet_disobeys(self, b, u, p, now):
+        """心情不好的寵物可能不聽指令:一半發呆、一半自己亂打"""
+        pt = u.pet
+        if pt is None or u.surge:
+            return False
+        ch = disobey_chance(pt['joy'], pt['bond'])
+        if ch <= 0 or random.random() >= ch:
+            return False
+        foes = b.alive(1 - u.side)
+        self.bfx(b, 'disobey', id=u.id)
+        if foes and random.random() < 0.5:
+            self.do_attack(b, u, random.choice(foes), now)
+        else:
+            u.status.pop('guard', None)
+            self.bfx(b, 'act', s=u.id, t=0, w='sulk', n='哼!', ty='status')
+            self.end_turn(u)
+        self.sys(p, '%s 心情不好,不聽指令!' % u.name)
+        return True
+
+    def guard_check(self, b, now):
+        """護主姿態:主人 HP 低於 30% 時,親密度夠高的寵物擋到主人前面"""
+        for pid in b.pids:
+            ou, u = b.units.get(b.ou.get(pid)), b.units.get(b.pu.get(pid))
+            if not u or not u.alive or u.pet is None:
+                continue
+            on = 'protect' in u.status
+            if not on and ou and ou.alive and u.pet['bond'] >= CARE['guard_bond'] and ou.hp < ou.mhp * CARE['guard_enter']:
+                u.status['protect'] = now + 99999
+                self.bfx(b, 'act', s=u.id, t=ou.id, w='protect', n='挺身護主!', ty='status')
+                self.bfx(b, 'st', id=u.id, st='protect', ok=1)
+            elif on and (not ou or not ou.alive or ou.hp >= ou.mhp * CARE['guard_leave']):
+                u.status.pop('protect', None)
+
     # ----- 寵物 / 敵人的行動 -----
     def do_attack(self, b, u, tgt, now):
         u.status.pop('guard', None)
-        self.bfx(b, 'act', s=u.id, t=tgt.id, w='melee', n='')
-        self.hit(b, u, tgt, 'phys', 1.0, now)
+        power = self.take_surge(u)
+        self.bfx(b, 'act', s=u.id, t=tgt.id, w='melee', n='' if power == 1 else '全力一擊')
+        self.hit(b, u, tgt, 'phys', 1.0 * power, now)
         self.end_turn(u)
 
     def do_skill(self, b, u, sk, tgt, now):
         s = PET_SKILLS[sk]
         u.status.pop('guard', None)
-        u.mp -= s['mp']
+        power = self.take_surge(u)
+        if power == 1:
+            u.mp -= s['mp']
         side_foe = 1 - u.side
         self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w=s['fx'], n=s['name'], ty=s['type'])
         if s['type'] == 'heal':
-            self.heal_unit(b, tgt, tgt.mhp * s['mult'] + u.matk * 0.5)
+            self.heal_unit(b, tgt, (tgt.mhp * s['mult'] + u.matk * 0.5) * power)
         elif s['type'] == 'status':
             key, dur = s['status']
-            ok = random.random() < s.get('chance', 1.0) and not tgt.boss
+            ok = random.random() < min(1.0, s.get('chance', 1.0) * power) and not tgt.boss
             if ok:
                 tgt.status[key] = now + dur
             self.bfx(b, 'st', id=tgt.id, st=key, ok=int(ok))
         elif s['target'] == 'enemies':
             for t in b.alive(side_foe):
-                self.hit(b, u, t, s['type'], s['mult'], now, s.get('el'))
+                self.hit(b, u, t, s['type'], s['mult'] * power, now, s.get('el'))
         else:
             for _ in range(s.get('hits', 1)):
                 if not tgt.alive:
                     break
-                d = self.hit(b, u, tgt, s['type'], s['mult'], now, s.get('el'), s.get('pierce', False))
+                d = self.hit(b, u, tgt, s['type'], s['mult'] * power, now, s.get('el'), s.get('pierce', False))
                 if s.get('drain') and d:
                     self.heal_unit(b, u, d * s['drain'])
             if s.get('status') and tgt.alive and random.random() < 0.6:
@@ -1604,20 +1703,27 @@ class Game:
             return
         who, a = m.get('u'), m.get('a')
         tg = b.units.get(m.get('tg'))
+        if who == 'o' and a == 'assist':   # 助攻不用等主人的時間棒
+            self.assist(b, p, now)
+            return
         if who == 'p':
             u = b.units.get(b.pu.get(p.id))
             if not self.can_act(u):
                 return
+            if a == 'skill':
+                sk = m.get('s')
+                if sk not in u.skills:
+                    return
+                if u.mp < PET_SKILLS[sk]['mp'] and not u.surge:
+                    return self.sys(p, 'MP 不足!')
+            if a in ('atk', 'skill', 'def') and self.pet_disobeys(b, u, p, now):
+                return self.check_end(b, now)
             foe = tg if tg and tg.alive and tg.side == 1 else self.pick_foe(b, u)
             if a == 'atk' and foe:
                 self.do_attack(b, u, foe, now)
             elif a == 'skill':
                 sk = m.get('s')
-                if sk not in u.skills:
-                    return
                 s = PET_SKILLS[sk]
-                if u.mp < s['mp']:
-                    return self.sys(p, 'MP 不足!')
                 if s['target'] == 'ally':
                     t = tg if tg and tg.alive and tg.side == 0 and tg.kind == 'p' else u
                     self.do_skill(b, u, sk, t, now)
@@ -1675,8 +1781,18 @@ class Game:
                 return
         u.mp -= sk['mp']
         self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w='owner_' + eff, n=sk['name'], ty='owner')
+
+        def boost(t):
+            """助攻加成:用在自己的寵物身上,效果隨親密度增強"""
+            if t is not None and t.kind == 'p' and t.pid == p.id and t.pet is not None:
+                k = assist_mult(t.pet['bond'])
+                if k > 1.01:
+                    self.bfx(b, 'boost', id=t.id, v=int(round((k - 1) * 100)))
+                return k
+            return 1.0
         if eff == 'buff':
             tgt.status[sk['st']] = now + sk['dur']
+            tgt.stmul[sk['st']] = boost(tgt)
             self.bfx(b, 'st', id=tgt.id, st=sk['st'], ok=1)
         elif eff == 'debuff':
             for t in (b.alive(1) if sk['target'] == 'enemies' else [tgt]):
@@ -1688,25 +1804,25 @@ class Game:
                 self.bfx(b, 'st', id=t.id, st=sk['st'], ok=1)
         elif eff == 'bar':
             if tgt.ready_at is None:
-                tgt.bar = min(99.9, tgt.bar + sk['val'])
+                tgt.bar = min(99.9, tgt.bar + sk['val'] * boost(tgt))
             self.bfx(b, 'st', id=tgt.id, st='haste', ok=1)
         elif eff == 'heal':
-            self.heal_unit(b, tgt, tgt.mhp * sk['val'] + p.lv * 4)
+            self.heal_unit(b, tgt, (tgt.mhp * sk['val'] + p.lv * 4) * boost(tgt))
         elif eff == 'shield':
-            tgt.shield = int(tgt.mhp * sk['val'])
+            tgt.shield = int(tgt.mhp * sk['val'] * boost(tgt))
             tgt.status['shield'] = now + 999
             self.bfx(b, 'st', id=tgt.id, st='shield', ok=1)
         elif eff == 'revive':
             if tgt.alive:
                 return self.end_turn(u)
-            self.revive(b, tgt, sk['val'])
+            self.revive(b, tgt, min(1.0, sk['val'] * boost(tgt)))
         elif eff == 'weather':
             b.weather, b.weather_until = sk['val'], now + sk['dur']
             self.bfx(b, 'weather', w=sk['val'])
         elif eff == 'mpall':
             for t in b.alive(0):
                 if t.kind == 'p':
-                    gain = sk['val'] + p.lv * 2
+                    gain = int((sk['val'] + p.lv * 2) * boost(t))
                     t.mp = min(t.mmp, t.mp + gain)
                     self.bfx(b, 'heal', id=t.id, v=gain, mp=1)
         elif eff == 'sleep':
@@ -1718,6 +1834,7 @@ class Game:
             for t in b.alive(0):
                 if t.kind == 'p':
                     t.status['haste'] = now + sk['dur']
+                    t.stmul['haste'] = boost(t)
                     self.bfx(b, 'st', id=t.id, st='haste', ok=1)
         self.end_turn(u)
 
@@ -1794,6 +1911,8 @@ class Game:
             return
         if p.pets[idx]['hp'] <= 0:
             return self.sys(p, '%s 已經倒下了,不能出戰。' % p.pets[idx]['n'])
+        if p.pets[idx]['food'] <= 0:
+            return self.sys(p, '%s 餓昏了,不肯出戰。' % p.pets[idx]['n'])
         self.sync_pet(b, p)
         if old:
             b.units.pop(old.id, None)
@@ -1853,10 +1972,13 @@ class Game:
             elif u.kind == 'p':
                 owner = self.players.get(u.pid)
                 if owner is None or owner.auto:
-                    self.ai_act(b, u, now)
+                    if owner is None or not self.pet_disobeys(b, u, owner, now):
+                        self.ai_act(b, u, now)
                 elif now - u.ready_at >= PET_TIMEOUT:
                     self.ai_act(b, u, now, smart=False)
             self.check_end(b, now)
+        if not b.over:
+            self.guard_check(b, now)
 
     def check_end(self, b, now):
         if b.over:
@@ -1880,6 +2002,7 @@ class Game:
             p.battle = None
             p.steps = 0
             p.pets_dirty = p.inv_dirty = True
+            self.battle_care(b, p, 'win' if win else 'lose')
             if win:
                 got = []
                 active = b.units.get(b.pu.get(pid))
@@ -1991,11 +2114,32 @@ class Game:
             self.last_save = now
             self.save()
 
-    def unit_view(self, u, now):
-        return {'i': u.id, 's': u.side, 'r': u.row, 'k': u.kind, 'c': u.sp or u.cls, 'n': u.name, 'lv': u.lv,
-                'el': u.el or '', 'hp': max(0, int(u.hp)), 'mh': u.mhp, 'mp': max(0, int(u.mp)), 'mm': u.mmp,
-                'bar': round(u.bar, 1), 'rt': round(u.rate(), 1), 'rd': int(u.ready_at is not None),
-                'st': sorted(u.status.keys()), 'pid': u.pid or 0, 'ko': int(not u.alive), 'boss': int(u.boss)}
+    def battle_mood(self, b, u):
+        """戰鬥中寵物頭上的泡泡"""
+        pt = u.pet
+        if pt is None or not u.alive:
+            return ''
+        if pt['food'] <= 0:
+            return 'starve'
+        if pt['food'] < CARE['hungry']:
+            return 'hungry'
+        if pt['joy'] < 30:
+            return 'angry'
+        foes = b.alive(1 - u.side)
+        if u.hp < u.mhp * 0.3 or (foes and max(f.lv for f in foes) >= u.lv + 5):
+            return 'scared'
+        return ''
+
+    def unit_view(self, u, now, b=None):
+        v = {'i': u.id, 's': u.side, 'r': u.row, 'k': u.kind, 'c': u.sp or u.cls, 'n': u.name, 'lv': u.lv,
+             'el': u.el or '', 'hp': max(0, int(u.hp)), 'mh': u.mhp, 'mp': max(0, int(u.mp)), 'mm': u.mmp,
+             'bar': round(u.bar, 1), 'rt': round(u.rate(), 1), 'rd': int(u.ready_at is not None),
+             'st': sorted(u.status.keys()), 'pid': u.pid or 0, 'ko': int(not u.alive), 'boss': int(u.boss)}
+        if u.kind == 'p' and u.pet is not None:
+            v['md'] = self.battle_mood(b, u) if b else ''
+            v['sy'] = int(u.sync) if u.pet['bond'] >= CARE['sync_bond'] else -1
+            v['sg'] = int(u.surge)
+        return v
 
     def send_snaps(self, now):
         fx, self.fx = self.fx, []
@@ -2012,7 +2156,7 @@ class Game:
                                             'f': -1, 'mv': 0, 'n': BOSS['name'], 'lv': BOSS['lv']}))
         battles = [(b.cx, b.cy, {'i': b.id, 'x': round(b.cx, 2), 'y': round(b.cy, 2), 'w': b.weather or '',
                                  'boss': int(b.boss), 'np': len(b.pids),
-                                 'u': [self.unit_view(u, now) for u in b.units.values()]})
+                                 'u': [self.unit_view(u, now, b) for u in b.units.values()]})
                    for b in self.battles.values()]
         for p in list(self.players.values()):
             e = [o for (x, y, o) in ents if abs(x - p.x) < VIEW and abs(y - p.y) < VIEW]
