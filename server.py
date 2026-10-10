@@ -1258,7 +1258,7 @@ class Game:
         u.status.pop('guard', None)
         u.mp -= s['mp']
         side_foe = 1 - u.side
-        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w=s['fx'], n=s['name'], k=s['type'])
+        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w=s['fx'], n=s['name'], ty=s['type'])
         if s['type'] == 'heal':
             self.heal_unit(b, tgt, tgt.mhp * s['mult'] + u.matk * 0.5)
         elif s['type'] == 'status':
@@ -1317,7 +1317,7 @@ class Game:
 
     def boss_act(self, b, u, now):
         if u.acts % 3 == 2:
-            self.bfx(b, 'act', s=u.id, t=0, w='breath', n='烈焰吐息', k='mag')
+            self.bfx(b, 'act', s=u.id, t=0, w='breath', n='烈焰吐息', ty='mag')
             for t in b.alive(0):
                 if t.kind == 'p':
                     self.hit(b, u, t, 'mag', 1.0, now, 'fire')
@@ -1325,12 +1325,12 @@ class Game:
         else:
             tgt = self.pick_foe(b, u)
             if tgt:
-                self.bfx(b, 'act', s=u.id, t=tgt.id, w='bite', n='撕咬' if u.acts % 3 else '', k='phys')
+                self.bfx(b, 'act', s=u.id, t=tgt.id, w='bite', n='撕咬' if u.acts % 3 else '', ty='phys')
                 self.hit(b, u, tgt, 'phys', 1.3, now)
             self.end_turn(u)
         if u.hp < u.mhp * 0.3 and 'haste' not in u.status:
             u.status['haste'] = now + 999
-            self.bfx(b, 'act', s=u.id, t=0, w='roar', n='炎龍暴怒了!', k='status')
+            self.bfx(b, 'act', s=u.id, t=0, w='roar', n='炎龍暴怒了!', ty='status')
 
     # ----- 玩家下指令 -----
     def battle_cmd(self, p, m, now):
@@ -1360,7 +1360,7 @@ class Game:
                     self.do_skill(b, u, sk, foe, now)
             elif a == 'def':
                 u.status['guard'] = now + 999
-                self.bfx(b, 'act', s=u.id, t=0, w='guard', n='防禦', k='status')
+                self.bfx(b, 'act', s=u.id, t=0, w='guard', n='防禦', ty='status')
                 self.end_turn(u)
         elif who == 'o':
             u = b.units.get(b.ou.get(p.id))
@@ -1409,7 +1409,7 @@ class Game:
             if tgt is None:
                 return
         u.mp -= sk['mp']
-        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w='owner_' + eff, n=sk['name'], k='owner')
+        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w='owner_' + eff, n=sk['name'], ty='owner')
         if eff == 'buff':
             tgt.status[sk['st']] = now + sk['dur']
             self.bfx(b, 'st', id=tgt.id, st=sk['st'], ok=1)
@@ -1475,14 +1475,14 @@ class Game:
             if not t:
                 return self.sys(p, '沒有倒下的寵物。')
             self.take_item(p, item)
-            self.bfx(b, 'act', s=u.id, t=t.id, w='owner_item', n=it['name'], k='owner')
+            self.bfx(b, 'act', s=u.id, t=t.id, w='owner_item', n=it['name'], ty='owner')
             self.revive(b, t, it['revive'])
         else:
             t = self.ally_pet_target(b, p, tg)
             if not t:
                 return self.sys(p, '沒有可以使用的對象。')
             self.take_item(p, item)
-            self.bfx(b, 'act', s=u.id, t=t.id, w='owner_item', n=it['name'], k='owner')
+            self.bfx(b, 'act', s=u.id, t=t.id, w='owner_item', n=it['name'], ty='owner')
             if it.get('hp'):
                 self.heal_unit(b, t, it['hp'])
             if it.get('mp'):
@@ -1506,7 +1506,7 @@ class Game:
             chance *= 1.3
         chance = max(0.03, min(0.95, chance))
         ok = random.random() < chance
-        self.bfx(b, 'act', s=u.id, t=tg.id, w='owner_seal', n='封印卡', k='owner')
+        self.bfx(b, 'act', s=u.id, t=tg.id, w='owner_seal', n='封印卡', ty='owner')
         self.bfx(b, 'cap', s=u.id, id=tg.id, ok=int(ok), pct=int(chance * 100))
         if ok:
             pt = new_pet(tg.sp, tg.lv, tg.q)
@@ -1539,7 +1539,7 @@ class Game:
         p.active = idx
         p.pets_dirty = True
         self.restack(b)
-        self.bfx(b, 'act', s=u.id, t=nu.id, w='owner_swap', n='換寵', k='owner')
+        self.bfx(b, 'act', s=u.id, t=nu.id, w='owner_swap', n='換寵', ty='owner')
         self.bfx(b, 'join', id=nu.id)
         self.end_turn(u)
 
