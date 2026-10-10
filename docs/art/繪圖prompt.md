@@ -6,10 +6,20 @@
 
 1. **每隻寵物開一個新對話**。想讓畫風跟噗噗一樣,先把 `art-src/噗噗.png` 拖進對話(當參考圖),再貼「主圖」。
 2. 主圖滿意後,**在同一個對話**依序貼「攻擊」「受傷」「睡著」(這三張可有可無)。
+   對話不見了:先上傳那隻的主圖(`art-src/名字.png`)再貼動作圖。
 3. 每張下載後,照箭頭後面的檔名存到 `art-src/`,再開去背工具按「存進遊戲」。
-4. 不滿意就直接用中文跟 GPT 說要改哪裡,例如「外框再粗一點」「眼睛大一點」。
+4. 不滿意就直接用中文跟 GPT 說要改哪裡。常見的:
+   - 表情不夠兇 →「表情要更生氣,眉毛壓低成 V 字,不要笑」
+   - 顏色或造型跑掉 →「顏色和造型要跟第一張完全一樣,只改姿勢和表情」
+   - 角色畫太小 →「角色要跟第一張一樣大,佔畫面寬度約 70%」
 5. GPT 偶爾會把灰白格子「畫」進圖裡(看起來透明其實不是)。遇到時把 `Background:` 那一行換成
    `Background: plain solid white background.`(白色系的寵物用 `plain solid bright green background`),去背工具會處理。
+
+## 每段 prompt 在講什麼
+- **Colors**:寫死配色。重畫時顏色才不會跑掉(小火妖試做時,重畫的攻擊圖火焰顏色、角的形狀都變了)。
+- **大小**:主圖和動作圖都要求「約佔畫面寬度 70%」,動作圖再要求「跟上一張一樣大」。
+- **Pose / Expression 分開寫**:攻擊身體往右前方衝、明講「不要笑」、眉毛壓成 V 字;受傷身體往左後倒、眼睛畫成 > <;睡著是往下彎的閉眼線。遊戲裡寵物只有 34~78px,表情要誇張才看得出來。
+- 動作圖明講「不要重新設計、不要加減特徵」,也不要求火焰變小、翅膀變大這種會改變大小的動作。
 
 > 路線圖的安排:這階段只試做噗噗和小火妖;其他寵物等階段 3(繁殖與進化)定案後再全面產圖,避免畫完又改。
 > 下面先把全部的 prompt 準備好,想提早畫也可以。
@@ -18,40 +28,50 @@
 
 ## 噗噗
 
-試做。主圖你已經有了,動作圖請在產主圖的那個對話接著貼;對話不見了就先上傳 art-src/噗噗.png 再貼。
+試做。主圖和三張動作圖都畫好了,這段留著以後重畫用。
 
 **主圖(必要)** → 存成 `art-src/噗噗.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a round pink jelly blob creature, glossy bouncy body, a small curled sprout on top, two small black oval eyes, tiny happy open-mouth smile.
+Character: a round pink jelly blob creature with a glossy bouncy body, a small curled sprout on top, tiny round hands and feet, two small black oval eyes, a tiny happy open-mouth smile.
+Colors: bubblegum pink body with lighter pink highlights and white shine spots, black eyes, dark brown outline.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: sitting still and happy, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: sitting still and happy, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/噗噗_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: squashed down and springing forward to body-slam, eyes narrowed with determination.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: bubblegum pink body with lighter pink highlights and white shine spots, black eyes, dark brown outline. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body squashed low and springing forward toward the right in a body-slam, the sprout on top bent backward.
+Expression: angry and fierce, NOT smiling: angry upper eyelids slanted down toward the center in a V shape, eyes narrowed into a glare, mouth wide open in a battle shout.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/噗噗_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: squished and recoiling backward, eyes squeezed shut, a small tear.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: bubblegum pink body with lighter pink highlights and white shine spots, black eyes, dark brown outline. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body squished and tilted backward toward the left, tiny hands raised to its face, the sprout drooping.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/噗噗_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: flattened and relaxed, eyes closed, sleeping peacefully.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: bubblegum pink body with lighter pink highlights and white shine spots, black eyes, dark brown outline. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body flattened and relaxed on the spot, the sprout drooping down.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -59,40 +79,50 @@ Square image, 1024x1024.
 
 ## 小火妖
 
-試做。
+試做。主圖已經很好(art-src/小火妖.png),只要重畫三張動作圖。請在產主圖的那個對話接著貼;對話不見了就先上傳 art-src/小火妖.png 再貼。
 
 **主圖(必要)** → 存成 `art-src/小火妖.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a small fire imp spirit, round red-orange body, wild hair made of yellow and orange flames, two tiny dark horns, big golden eyes, mischievous grin with a tiny fang, little stubby arms.
+Character: a small floating fire imp spirit with a round chubby body, a big mane of wild hair made of flames, a small flame tail, two small curved horns, big golden eyes, a mischievous grin with one tiny fang, little stubby arms.
+Colors: red-orange body; flame hair and flame tail with pale yellow-white centers, bright yellow middle and orange to red-orange tips; dark brown horns; golden yellow eyes.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: floating in the air, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: floating in the air, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/小火妖_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: leaning forward in the air with both little hands thrust out, the flames of its hair flaring up.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: red-orange body; flame hair and flame tail with pale yellow-white centers, bright yellow middle and orange to red-orange tips; dark brown horns; golden yellow eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: whole body leaning forward diagonally toward the right as if charging, both little arms thrust straight forward, the flame hair and flame tail streaming backward and keeping the same size.
+Expression: angry and fierce, NOT smiling: eyebrows slanted sharply down toward the center in a V shape, eyes narrowed into a glare, mouth wide open in a battle shout showing the tiny fang.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/小火妖_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: knocked backward in the air, eyes squeezed shut, its hair flames shrinking.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: red-orange body; flame hair and flame tail with pale yellow-white centers, bright yellow middle and orange to red-orange tips; dark brown horns; golden yellow eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: knocked backward: body tilted back toward the left, arms flung up, the flame hair blown backward but keeping the same size.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/小火妖_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: floating curled up, eyes closed, its hair flames small and calm, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: red-orange body; flame hair and flame tail with pale yellow-white centers, bright yellow middle and orange to red-orange tips; dark brown horns; golden yellow eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: floating curled up into a ball, arms tucked in, the flame hair resting calmly around it and keeping the same size.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -104,34 +134,44 @@ Square image, 1024x1024.
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a green slime creature, translucent droopy jelly body shaped like a water drop, two cute eyes, small bubbles inside its body.
+Character: a green slime creature with a translucent droopy jelly body shaped like a water drop, two cute eyes, small bubbles inside its body.
+Colors: translucent lime green body with lighter green highlights and white shine, darker green bubbles inside, black eyes.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: sitting still, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: sitting still, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/綠史萊姆_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: stretching forward in a lunge with a determined face.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: translucent lime green body with lighter green highlights and white shine, darker green bubbles inside, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body stretching forward toward the right in a lunge, the front of the body reaching out.
+Expression: angry and fierce, NOT smiling: angry upper eyelids slanted down toward the center in a V shape, eyes narrowed into a glare, mouth wide open in a battle shout.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/綠史萊姆_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: wobbling backward, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: translucent lime green body with lighter green highlights and white shine, darker green bubbles inside, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body wobbling and leaning backward toward the left, droopy.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/綠史萊姆_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: melted into a relaxed puddle shape, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: translucent lime green body with lighter green highlights and white shine, darker green bubbles inside, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: body melted into a low relaxed puddle shape.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -143,34 +183,44 @@ Square image, 1024x1024.
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a small goblin, green skin, big pointy ears, yellow eyes, cheeky grin, brown leather tunic, holding a wooden club.
+Character: a small goblin with big pointy ears, yellow eyes, a cheeky grin, a brown leather tunic, holding a wooden club.
+Colors: olive green skin, yellow eyes, brown leather tunic, light brown wooden club.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing ready, holding the club, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing ready, holding the club, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/哥布林_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: swinging the wooden club forward over its head, mouth open shouting.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: olive green skin, yellow eyes, brown leather tunic, light brown wooden club. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: stepping forward toward the right and swinging the wooden club down from over its head.
+Expression: angry and fierce, NOT smiling: eyebrows slanted sharply down toward the center in a V shape, eyes narrowed into a glare, mouth wide open in a battle shout.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/哥布林_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: stumbling backward holding its head, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: olive green skin, yellow eyes, brown leather tunic, light brown wooden club. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: stumbling backward toward the left, one hand holding its head, the club lowered.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/哥布林_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: sitting on the ground hugging the club, eyes closed, dozing.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: olive green skin, yellow eyes, brown leather tunic, light brown wooden club. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: sitting on the ground with legs stretched out, hugging the club, head tilted to one side.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth slightly open with a little drool.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -182,34 +232,44 @@ Square image, 1024x1024.
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a gray wolf cub, fluffy fur, red eyes, small fangs, alert pointy ears, fierce but cute.
+Character: a wolf cub with fluffy fur, red eyes, small fangs, alert pointy ears, fierce but cute.
+Colors: blue-gray fur with a light gray belly and muzzle, darker gray ear tips, red eyes, white fangs.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing on four legs, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing on four legs, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/野狼_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: lunging forward with mouth open showing fangs, front paws reaching out.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: blue-gray fur with a light gray belly and muzzle, darker gray ear tips, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: lunging forward toward the right with front paws off the ground, ears pinned forward.
+Expression: angry and fierce, NOT smiling: brow fur slanted sharply down toward the center, eyes narrowed into a glare, mouth wide open snarling with fangs showing.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/野狼_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: flinching backward, ears flat, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: blue-gray fur with a light gray belly and muzzle, darker gray ear tips, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: flinching backward toward the left, ears flat against its head, tail tucked.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a whimper, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/野狼_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: curled up lying down with its tail wrapped around, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: blue-gray fur with a light gray belly and muzzle, darker gray ear tips, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: curled up lying down with its tail wrapped around its nose.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -217,40 +277,50 @@ Square image, 1024x1024.
 
 ## 骷髏兵
 
-白色系,如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
+白色系:如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
 
 **主圖(必要)** → 存成 `art-src/骷髏兵.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a cute chibi skeleton warrior, round skull with glowing red eye sockets, holding a rusty short sword and a small wooden shield.
+Character: a cute chibi skeleton warrior with a round skull and glowing eye sockets, holding a rusty short sword and a small wooden shield.
+Colors: ivory white bones, glowing red eye sockets, rusty brown sword, brown wooden shield.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing ready with sword and shield, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing ready with sword and shield, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/骷髏兵_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: slashing forward with the rusty sword raised high.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: ivory white bones, glowing red eye sockets, rusty brown sword, brown wooden shield. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: stepping forward toward the right and slashing with the rusty sword raised high, shield held in front.
+Expression: angry and fierce: the glowing red eye sockets narrowed into angry slanted slits forming a V, jaw wide open in a war cry.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/骷髏兵_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: bones rattling and leaning backward, skull tilted, eye glow flickering.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: ivory white bones, glowing red eye sockets, rusty brown sword, brown wooden shield. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: knocked backward toward the left, bones knocked slightly askew, skull tilted, one arm flailing.
+Expression: in shock: the eye glows shrunk to tiny dots, jaw hanging wide open.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/骷髏兵_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: sitting slumped on the ground, eye glow dimmed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: ivory white bones, glowing red eye sockets, rusty brown sword, brown wooden shield. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: sitting slumped on the ground, the sword resting across its lap, skull drooping forward.
+Expression: asleep: the eye glows dimmed to tiny faint dots, jaw slightly open, relaxed.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -258,40 +328,50 @@ Square image, 1024x1024.
 
 ## 彩虹鴿
 
-白色系,如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
+白色系:如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
 
 **主圖(必要)** → 存成 `art-src/彩虹鴿.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a white dove, round fluffy body, rainbow colored tail feathers (red, yellow, green, blue, purple), orange beak.
+Character: a dove with a round fluffy body, a fan of rainbow colored tail feathers, an orange beak, flapping wings.
+Colors: white body with pale gray wing shading, tail feathers in red, yellow, green, blue and purple, orange beak, black eyes.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: flying with wings flapping, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: flying with wings flapping, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/彩虹鴿_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: diving forward with wings swept back and beak pointed.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white body with pale gray wing shading, tail feathers in red, yellow, green, blue and purple, orange beak, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: diving forward toward the right with wings swept back and beak pointed forward.
+Expression: angry and fierce, NOT cute-smiling: brow feathers slanted sharply down toward the center in a V shape, eyes narrowed into a glare, beak open in a battle cry.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/彩虹鴿_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: tumbling backward in the air, feathers ruffled, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white body with pale gray wing shading, tail feathers in red, yellow, green, blue and purple, orange beak, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: tumbling backward toward the left in the air, wings flung up, feathers ruffled.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, beak open in a squawk, one small tear.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/彩虹鴿_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: perched with its head tucked into its feathers, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white body with pale gray wing shading, tail feathers in red, yellow, green, blue and purple, orange beak, black eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: sitting low with its head tucked into its chest feathers, wings folded.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -299,40 +379,50 @@ Square image, 1024x1024.
 
 ## 月狐
 
-白色系,如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
+白色系:如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
 
 **主圖(必要)** → 存成 `art-src/月狐.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a pale moonlight fox, white and light blue fur, huge fluffy tail, bright blue eyes, pink inner ears, a small crescent moon mark on its forehead.
+Character: a moonlight fox with a huge fluffy tail, bright eyes, a small crescent moon mark on its forehead.
+Colors: white fur with pale light-blue shading, bright blue eyes, pink inner ears, pale yellow crescent moon mark.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing on four legs, tail held high, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing on four legs, tail held high, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/月狐_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: pouncing forward with front paws raised.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white fur with pale light-blue shading, bright blue eyes, pink inner ears, pale yellow crescent moon mark. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: pouncing forward toward the right with front paws raised, tail swept back.
+Expression: angry and fierce, NOT smiling: brow fur slanted sharply down toward the center in a V shape, eyes narrowed into a glare, mouth open showing small fangs.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/月狐_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: flinching backward, ears flat, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white fur with pale light-blue shading, bright blue eyes, pink inner ears, pale yellow crescent moon mark. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: flinching backward toward the left, ears flat, tail tucked.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/月狐_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: curled up with its huge fluffy tail wrapped around itself, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white fur with pale light-blue shading, bright blue eyes, pink inner ears, pale yellow crescent moon mark. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: curled up with its huge fluffy tail wrapped around its body like a blanket.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -344,34 +434,44 @@ Square image, 1024x1024.
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a small purple vampire bat, big leathery wings, red eyes, two tiny white fangs, round fuzzy body.
+Character: a small vampire bat with big leathery wings, two tiny fangs, a round fuzzy body.
+Colors: purple fuzzy body, darker purple wing membranes, red eyes, white fangs.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: flying with wings spread open, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: flying with wings spread open, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/吸血蝙蝠_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: swooping forward with fangs bared and wings swept back.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: purple fuzzy body, darker purple wing membranes, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: swooping forward toward the right with wings swept back.
+Expression: angry and fierce, NOT smiling: brows slanted sharply down toward the center in a V shape, red eyes narrowed into a glare, mouth wide open with fangs bared.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/吸血蝙蝠_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: knocked backward, wings crumpled, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: purple fuzzy body, darker purple wing membranes, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: knocked backward toward the left, wings crumpled inward.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a squeak, one small tear.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/吸血蝙蝠_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: wrapped in its own wings like a cloak, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: purple fuzzy body, darker purple wing membranes, red eyes, white fangs. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: wrapped in its own wings like a cloak, only the face showing.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, the two fangs peeking out.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -379,40 +479,50 @@ Square image, 1024x1024.
 
 ## 獅鷲獸
 
-頭是白色,如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
+頭是白色:如果 GPT 沒給透明背景,把 Background 那行換成 plain solid bright green background。
 
 **主圖(必要)** → 存成 `art-src/獅鷲獸.png`
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a young griffin, white eagle head with golden beak, golden tan lion body, large brown feathered wings, lion tail.
+Character: a young griffin with an eagle head, a lion body, large feathered wings and a lion tail.
+Colors: white eagle head, golden yellow beak, golden tan lion body, brown wings with lighter brown feather edges.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing proudly with wings half open, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing proudly with wings half open, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/獅鷲獸_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: rearing up with wings spread wide, beak open, front talons striking forward.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white eagle head, golden yellow beak, golden tan lion body, brown wings with lighter brown feather edges. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: rearing up on its hind legs facing right, wings spread wide, front talons striking forward.
+Expression: angry and fierce: brow feathers slanted sharply down toward the center in a V shape, eagle eyes narrowed into a glare, beak wide open screeching.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/獅鷲獸_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: recoiling backward with wings folded in, eyes squeezed shut.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white eagle head, golden yellow beak, golden tan lion body, brown wings with lighter brown feather edges. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: recoiling backward toward the left, wings folded tight, head pulled back.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, beak open in a cry.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/獅鷲獸_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: lying down with wings folded and head resting on its front legs, eyes closed, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: white eagle head, golden yellow beak, golden tan lion body, brown wings with lighter brown feather edges. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: lying down with wings folded and its head resting on its front legs.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, mouth small and relaxed, peaceful.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
@@ -424,34 +534,44 @@ Square image, 1024x1024.
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a baby dragon, orange scales, cream colored belly, two small ivory horns, small bat-like wings, big curious eyes, chubby.
+Character: a chubby baby dragon with two small horns, small bat-like wings and big curious eyes.
+Colors: orange scales, cream colored belly, ivory horns, orange wings with lighter orange membranes, amber eyes.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing on its hind legs, wings slightly open, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing on its hind legs, wings slightly open, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/幼龍_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: breathing a small puff of flame forward from its mouth, wings raised.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: orange scales, cream colored belly, ivory horns, orange wings with lighter orange membranes, amber eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: leaning forward toward the right and breathing a small puff of flame from its mouth, wings raised.
+Expression: angry and fierce, NOT smiling: eyebrows slanted sharply down toward the center in a V shape, eyes narrowed into a glare, mouth wide open in a battle shout.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects (the small flame coming from its mouth is the only effect allowed), only this one character.
 Square image, 1024x1024.
 ```
 
 **受傷(可選)** → 存成 `art-src/幼龍_受傷.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: recoiling backward, eyes squeezed shut, tiny wings folded.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: orange scales, cream colored belly, ivory horns, orange wings with lighter orange membranes, amber eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: recoiling backward toward the left, tiny wings folded, tail curled.
+Expression: in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a wobbly cry, one small tear at the corner of an eye.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **睡著(可選)** → 存成 `art-src/幼龍_睡著.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: curled up with its tail around its body, eyes closed, a tiny smoke puff from its nose, sleeping.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: orange scales, cream colored belly, ivory horns, orange wings with lighter orange membranes, amber eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: curled up with its tail around its body.
+Expression: sound asleep: eyes closed and drawn as gentle downward-curved lines, a tiny smoke puff from its nose.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects (a tiny smoke puff from its nose is the only effect allowed), only this one character.
 Square image, 1024x1024.
 ```
 
@@ -465,17 +585,21 @@ BOSS 只需要主圖和攻擊圖,不用 Q 版得那麼可愛。
 ```
 If I attached a reference image, match its art style exactly (outline thickness, shading, colors), but draw the new character described below.
 Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.
-Character: a huge fierce red fire dragon, dark red scales, orange belly, large horns, spiky back, big wings spread, menacing glowing eyes, embers around it.
+Character: a huge fierce fire dragon with large horns, a spiky back, big wings spread and menacing glowing eyes, embers around it.
+Colors: dark red scales, orange belly, ivory horns, black spikes, glowing yellow eyes.
 Style: thick dark brown outline, flat cel shading with one shadow tone, soft glossy highlight, light from the upper left, vivid saturated colors, simple clean shapes that stay readable at small size.
-Pose: standing on four legs, wings spread wide, looking powerful, full body, side view facing right (three-quarter view), centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Pose: standing on four legs, wings spread wide, looking powerful, full body, side view facing right (three-quarter view), centered. The character fills about 70% of the image width.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects, only this one character.
 Square image, 1024x1024.
 ```
 
 **攻擊(可選)** → 存成 `art-src/炎龍_攻擊.png`
 ```
-Draw the exact same character as in the previous image (same design, colors, proportions, outline thickness and art style), now in this pose: rearing up and breathing a big stream of fire forward.
-Full body, side view facing right, centered, with some empty space around it.
-Background: transparent background (PNG). No shadow, no ground, no text, no extra objects or effects, only this one character.
+Draw the exact same character as in the previous image. Do not redesign it: keep the same design, proportions, outline thickness, art style and these exact colors: dark red scales, orange belly, ivory horns, black spikes, glowing yellow eyes. Do not add or remove any features.
+Keep the character the same size as in the previous image. The character fills about 70% of the image width.
+Pose: rearing up and breathing a big stream of fire forward toward the right.
+Expression: furious: eyes glowing and narrowed, jaws wide open.
+Full body, still facing right (side view, three-quarter), centered.
+Background: transparent background (PNG). No shadow, no ground, no text, no extra objects, no motion lines or effects (the fire breath is the only effect allowed), only this one character.
 Square image, 1024x1024.
 ```

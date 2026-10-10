@@ -72,6 +72,8 @@
       <div class="step"><b>4. 裁切與方向</b>
         <label><input type="checkbox" id="flip"> 水平翻轉(原圖朝左時勾選,遊戲要朝右)</label>
         <label>上方留白 <input type="range" id="pad" min="0" max="24" value="4"><span class="val" id="pad-v"></span></label>
+        <label id="fscale-row" hidden>動作圖大小 <input type="range" id="fscale" min="50" max="150" value="100"><span class="val" id="fscale-v"></span></label>
+        <div class="note" id="fscale-note"></div>
       </div>
       <div class="step"><b>5. 像素化(可選)</b>
         <label><input type="checkbox" id="pix"> 轉成像素風(畫布 = 顯示大小 ÷ 2)</label>

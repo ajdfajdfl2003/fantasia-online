@@ -52,11 +52,32 @@ function updateTarget() {
   $('cur-img').style.visibility = cur ? 'visible' : 'hidden';
   $('cur-cap').textContent = cur ? '遊戲裡目前的圖' : '遊戲裡還沒有這張圖';
   $('b-del').disabled = !cur;
+  $('fscale-row').hidden = !tg.frame;
+  if (tg.frame) loadMainRef(tg); else $('fscale-note').textContent = '';
   const src = findSrc(tg);
   $('srcfind').textContent = src ? `art-src/${src}` : `art-src/ 裡沒有這張的原圖(檔名:${srcNames(tg)[0]}.png)`;
   if (src && T.loaded !== tg.file + '|' + src) loadSrc(src, tg);
   else if (T.loaded && !T.loaded.endsWith('|manual') && !T.loaded.startsWith(tg.file + '|')) clearWork();   // 別張的原圖,不能拿來存成這張
   else if (T.src) buildOutput();
+}
+// 動作圖的大小基準:遊戲裡這隻寵物的主圖 (算出不透明的面積,換算成 256 畫布的單位)
+function loadMainRef(tg) {
+  const f = T.man.files.find(x => x.p === tg.baseKey + '.png');
+  if (!f) { T.mainRef = null; delete ART.imgs.cmp; return; }
+  const tag = f.p + '?v=' + f.v;
+  if (T.mainRef && T.mainRef.tag === tag) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = mkCanvas(img.width, img.height), g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, img.width, img.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 128) n++;
+    T.mainRef = { key: tg.baseKey, tag, area: n * (OUT / img.width) ** 2 };
+    ART.imgs.cmp = img; ART.meta.cmp = measureArt(img);
+    if (T.src) buildOutput();
+  };
+  img.src = '/assets/' + tag;
 }
 function clearWork() {
   T.src = T.auto = T.final = T.out = null;
@@ -296,14 +317,33 @@ function buildOutput() {
   if (!b) { T.out = null; refreshOutput(); return; }
   const crop = mkCanvas(b.w, b.h);
   crop.getContext('2d').putImageData(new ImageData(T.final, T.w, T.h), -b.x0, -b.y0, b.x0, b.y0, b.w, b.h);
-  const pad = +$('pad').value, side = 2;
-  const k = Math.min((OUT - side * 2) / b.w, (OUT - pad) / b.h);
+  const pad = +$('pad').value, side = 2, tg = target();
+  const fill = Math.min((OUT - side * 2) / b.w, (OUT - pad) / b.h);   // 塞滿畫布的倍率
+  let k = fill, note = '';
+  if (tg.frame) {   // 動作圖:依「遊戲裡主圖」的面積對齊大小,不要各自塞滿 (不然攻擊、受傷、睡著會忽大忽小)
+    const ref = T.mainRef && T.mainRef.key === tg.baseKey ? T.mainRef : null;
+    if (ref) {
+      let area = 0;
+      for (let i = 3; i < T.final.length; i += 4) if (T.final[i] > 128) area++;
+      k = Math.sqrt(ref.area / Math.max(1, area)) * (+$('fscale').value / 100);
+      note = `已依遊戲裡的主圖(${tg.baseKey}.png)對齊大小`;
+    } else note = '遊戲裡還沒有這隻的主圖:先做主圖,動作圖才能自動對齊大小(現在是塞滿畫布)';
+  }
+  // 動作圖比主圖大時,把畫布放大 (遊戲依圖片寬度等比例畫,大小仍然對齊),而不是把角色縮小
+  let C = OUT;
+  const needW = b.w * k + side * 2, needH = b.h * k + pad;
+  if (tg.frame && (needW > OUT || needH > OUT)) {
+    C = Math.min(512, Math.ceil(Math.max(needW, needH)));
+    if (C === 512) k = Math.min(k, (512 - side * 2) / b.w, (512 - pad) / b.h);
+    note += `;這張比主圖大,畫布放大成 ${C}×${C}`;
+  }
+  $('fscale-note').textContent = note;
   const fit = downscale(crop, b.w * k, b.h * k);
-  let out = mkCanvas(OUT, OUT);
+  let out = mkCanvas(C, C);
   const g = out.getContext('2d');
-  if ($('flip').checked) { g.translate(OUT, 0); g.scale(-1, 1); }
-  g.drawImage(fit, Math.round((OUT - fit.width) / 2), OUT - fit.height);
-  if ($('pix').checked) out = pixelate(out, Math.max(8, Math.round(target().size / 2)), +$('colors').value, $('outline').checked);
+  if ($('flip').checked) { g.translate(C, 0); g.scale(-1, 1); }
+  g.drawImage(fit, Math.round((C - fit.width) / 2), C - fit.height);
+  if ($('pix').checked) out = pixelate(out, Math.max(8, Math.round(target().size / 2 * C / OUT)), +$('colors').value, $('outline').checked);
   T.out = out;
   refreshOutput();
 }
@@ -398,11 +438,17 @@ function drawPreview(t) {
   // 上排:地圖上實際大小
   drawHumanoid(g, 70, 100, { ...lookOwner('knight', '測試'), face: 1 }, t);
   if (has) drawOne(190, 100, true, 1); else label('(還沒有成品)', 190, 90);
-  drawOne(320, 100, false, 1);
-  label('主人', 70, 116); label('這張圖', 190, 116); label('程式繪圖', 320, 116);
+  const cmp = tg.frame && T.mainRef && T.mainRef.key === tg.baseKey && ART.imgs.cmp;
+  const drawCmp = (x, y, scale) => {
+    g.save(); g.translate(x, y); g.scale(scale, scale);
+    drawArt(g, 'cmp', 0, 0, { t, face: 1, id: 5 }, tg.size, tg.hover);
+    g.restore();
+  };
+  if (cmp) drawCmp(320, 100, 1); else drawOne(320, 100, false, 1);
+  label('主人', 70, 116); label('這張圖', 190, 116); label(cmp ? '主圖(比大小)' : '程式繪圖', 320, 116);
   // 下排:2 倍
   if (has) drawOne(170, 222, true, 2);
-  drawOne(330, 222, false, 2);
+  if (cmp) drawCmp(330, 222, 2); else drawOne(330, 222, false, 2);
   requestAnimationFrame(drawPreview);
 }
 
@@ -453,7 +499,7 @@ function bindUI() {
   $('sel-kind').onchange = fillTargets;
   $('sel-target').onchange = updateTarget;
   $('sel-frame').onchange = updateTarget;
-  const vals = { tol: '', soft: '', 'clean-pct': '%', pad: '', colors: '', brush: '' };
+  const vals = { tol: '', soft: '', 'clean-pct': '%', pad: '', colors: '', brush: '', fscale: '%' };
   for (const [id, unit] of Object.entries(vals)) {   // 滑桿旁邊顯示數值
     const vEl = $(id === 'clean-pct' ? 'clean-v' : id + '-v');
     const upd = () => { vEl.textContent = $(id).value + unit; };
@@ -463,7 +509,7 @@ function bindUI() {
   let timer = 0;
   const later = fn => () => { clearTimeout(timer); timer = setTimeout(fn, 60); };
   for (const id of ['tol', 'soft', 'enclosed', 'clean', 'clean-pct']) $(id).addEventListener('input', later(process));
-  for (const id of ['flip', 'pad', 'pix', 'colors', 'outline']) $(id).addEventListener('input', later(() => { updateTarget(); buildOutput(); }));
+  for (const id of ['flip', 'pad', 'pix', 'colors', 'outline', 'fscale']) $(id).addEventListener('input', later(() => { updateTarget(); buildOutput(); }));
   $('show-src').onchange = () => T.src && drawWork();
   $('b-erase').onclick = () => { T.brush = 'erase'; $('b-erase').classList.add('on'); $('b-restore').classList.remove('on'); };
   $('b-restore').onclick = () => { T.brush = 'restore'; $('b-restore').classList.add('on'); $('b-erase').classList.remove('on'); };

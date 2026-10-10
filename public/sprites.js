@@ -361,8 +361,9 @@ function artFor(key, o) {
   if (o.sleep && ART.imgs[key + '_sleep']) return ART.imgs[key + '_sleep'];
   return ART.imgs[key];
 }
-// 圖片實際畫出來的邊長:像素圖用整數倍放大,一般圖縮放到 size
-function artDrawSize(key, img, size) { return ART.meta[key] && ART.meta[key].pixel ? img.width * Math.max(1, Math.round(size / img.width)) : size; }
+// 圖片實際畫出來的邊長:所有圖用同一個比例 (256 圖片像素 = size),動作圖的畫布比主圖大時就畫得比較大;
+// 像素圖一律 2 倍不平滑放大
+function artDrawSize(key, img, size) { return ART.meta[key] && ART.meta[key].pixel ? img.width * 2 : img.width * size / 256; }
 // 把程式動畫套在圖片上:呼吸、走路彈跳、浮空、攻擊前傾、受傷閃白、倒下變灰、朝左翻轉
 function drawArt(g, key, x, y, o, size, hover) {
   const img = artFor(key, o);
