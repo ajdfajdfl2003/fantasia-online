@@ -24,10 +24,11 @@ import time
 import traceback
 from urllib.parse import unquote
 
-from game_data import (BOSS, CLASSES, EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS, ENCOUNTER_RATE, HATCH_HINTS,
-                       HATCH_TIME, HATCH_WARMUP, ITEMS, PET_SKILLS, ROAD_ENCOUNTER, SHOP_ITEMS, SPECIES,
-                       STATUS_NAMES, WEATHER, WILD_POWER, WILD_QUALITY_WEIGHTS, ZONES, derive, elem_mult,
-                       exp_need, pet_skills, stars)
+from game_data import (ART, ART_FRAMES, BOSS, CARE, CLASSES, EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS,
+                       ENCOUNTER_RATE, FOODS, HATCH_HINTS, HATCH_TIME, HATCH_WARMUP, INTERACT, ITEMS, PET_SKILLS,
+                       ROAD_ENCOUNTER, SHOP_ITEMS, SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER,
+                       WILD_QUALITY_WEIGHTS, ZONES, assist_mult, derive, disobey_chance, elem_mult, exp_need,
+                       link_ratio, pet_skills, stars, sync_gain, taste)
 
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -194,16 +195,25 @@ NEIGH = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
 # ============================================================
 #  寵物
 # ============================================================
-def new_pet(sp, lv, q, name=None):
-    """建立一隻寵物。q = 天生素質點 (0~12),依種族偏好隨機分配到四項能力"""
+def clamp(v, lo=0.0, hi=100.0):
+    return lo if v < lo else hi if v > hi else v
+
+
+def new_pet(sp, lv, q, name=None, start='new'):
+    """建立一隻寵物。q = 天生素質點 (0~12),依種族偏好隨機分配到四項能力
+    start = new 新手送的 / hatch 孵化 / wild 捕捉,決定飽食度、快樂值、親密度的起始值"""
     s = SPECIES[sp]
     st = list(s['base'])
     w = [p + 1 for p in s['pref']]
     for _ in range(q):
         st[wpick(w)] += 1
     d = derive(lv, st)
+    food, joy, bond = CARE['start_' + start]
+    if isinstance(bond, tuple):
+        bond = random.randint(*bond)
     return {'uid': secrets.token_hex(4), 'sp': sp, 'n': name or s['name'], 'lv': lv, 'exp': 0, 'q': q,
-            'st': st, 'pts': s['grow'] * (lv - 1), 'hp': d['mhp'], 'mp': d['mmp']}
+            'st': st, 'pts': s['grow'] * (lv - 1), 'hp': d['mhp'], 'mp': d['mmp'],
+            'food': float(food), 'joy': float(joy), 'bond': float(bond), 'sync': 0.0}
 
 
 def pet_ok(pt):
@@ -213,16 +223,49 @@ def pet_ok(pt):
         return False
 
 
+def fix_pet(pt):
+    """舊存檔 (階段 1) 的寵物沒有照顧數值,補上預設值"""
+    food, joy, bond = CARE['start_old']
+    for k, v in (('food', food), ('joy', joy), ('bond', bond), ('sync', 0)):
+        try:
+            pt[k] = float(clamp(float(pt.get(k, v))))
+        except (TypeError, ValueError):
+            pt[k] = float(v)
+    pt['sulk'] = bool(pt.get('sulk', False))
+    return pt
+
+
 def pet_view(pt):
     d = derive(pt['lv'], pt['st'])
     return {'uid': pt['uid'], 'sp': pt['sp'], 'n': pt['n'], 'lv': pt['lv'], 'exp': pt['exp'], 'nx': exp_need(pt['lv']),
             'q': pt['q'], 'star': stars(pt['q']), 'st': pt['st'], 'pts': pt['pts'], 'hp': pt['hp'], 'mp': pt['mp'],
             'mhp': d['mhp'], 'mmp': d['mmp'], 'atk': d['atk'], 'matk': d['matk'], 'def': d['def'], 'mdef': d['mdef'],
-            'spd': round(d['spd'], 1), 'skills': pet_skills(pt['sp'], pt['lv'])}
+            'spd': round(d['spd'], 1), 'skills': pet_skills(pt['sp'], pt['lv']),
+            'food': int(math.ceil(pt['food'])), 'joy': int(math.ceil(pt['joy'])), 'bond': int(pt['bond']),
+            'sync': int(pt['sync']), 'sulk': int(pt.get('sulk', False))}
 
 
 def pet_price(pt):
     return 30 + pt['lv'] * 15 + pt['q'] * 25 + (100 if 'egg' in SPECIES[pt['sp']] else 0)
+
+
+def can_fight(pt):
+    return pt['hp'] > 0 and pt['food'] > 0
+
+
+def pet_mood(pt, idle=0.0):
+    """心情泡泡 (地圖上):依優先順序取第一個符合的"""
+    if pt['food'] <= 0:
+        return 'starve'
+    if pt['food'] < CARE['hungry']:
+        return 'hungry'
+    if pt['joy'] < 30:
+        return 'angry'
+    if idle >= CARE['sleepy_idle']:
+        return 'sleepy'
+    if pt['joy'] >= 80 and pt['bond'] >= 60:
+        return 'love'
+    return ''
 
 
 # ============================================================
@@ -240,7 +283,8 @@ class Player:
         self.gold = int(rec.get('gold', 0))
         self.inv = [{'id': s['id'], 'n': int(s['n'])} for s in rec.get('inv', [])
                     if isinstance(s, dict) and s.get('id') in ITEMS][:INV_MAX]
-        self.pets = [pt for pt in rec.get('pets', []) if pet_ok(pt)][:PET_MAX]
+        self.pets = [fix_pet(pt) for pt in rec.get('pets', []) if pet_ok(pt)][:PET_MAX]
+        self.bank = [fix_pet(pt) for pt in rec.get('bank', []) if pet_ok(pt)]   # 寄放在寵物旅館的寵物
         self.active = min(max(0, int(rec.get('active', 0))), max(0, len(self.pets) - 1))
         self.x, self.y = float(rec.get('x', SPAWN[0])), float(rec.get('y', SPAWN[1]))
         self.recalc()
@@ -256,7 +300,20 @@ class Player:
         self.enc_dist, self.steps = 0.0, ENCOUNTER_MIN_STEPS
         self.hatch = None
         self.last_chat = 0.0
-        self.inv_dirty = self.pets_dirty = True
+        self.cd = {}              # 寵物 uid → {互動動作: 冷卻結束時間}
+        self.sulk = {}            # 寵物 uid → 快樂值與飽食度都是 0 持續了幾秒
+        self.idle_since = time.time()
+        self.care_n = 0
+        self.inv_dirty = self.pets_dirty = self.bank_dirty = True
+
+    def remove_pet(self, i):
+        """從身上移除第 i 隻寵物,並修正出戰寵物的索引"""
+        pt = self.pets.pop(i)
+        if i < self.active:
+            self.active -= 1
+        self.active = min(max(0, self.active), max(0, len(self.pets) - 1))
+        self.pets_dirty = True
+        return pt
 
     def recalc(self):
         c, l = CLASSES[self.cls], self.lv - 1
@@ -270,18 +327,18 @@ class Player:
         self.path = []
 
     def alive_pet(self):
-        """回傳可以出戰的寵物索引 (優先用目前的出戰寵物)"""
-        if 0 <= self.active < len(self.pets) and self.pets[self.active]['hp'] > 0:
+        """回傳可以出戰的寵物索引 (優先用目前的出戰寵物)。倒下或餓昏的寵物不能出戰"""
+        if 0 <= self.active < len(self.pets) and can_fight(self.pets[self.active]):
             return self.active
         for i, pt in enumerate(self.pets):
-            if pt['hp'] > 0:
+            if can_fight(pt):
                 return i
         return None
 
     def record(self):
         r = dict(self.rec)
         r.update({'cls': self.cls, 'lv': self.lv, 'exp': self.exp, 'gold': self.gold, 'inv': self.inv,
-                  'pets': self.pets, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
+                  'pets': self.pets, 'bank': self.bank, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
                   'hp': self.hp, 'mp': self.mp, 'last': int(time.time())})
         r.pop('equip', None)
         return r
@@ -544,18 +601,29 @@ class Game:
         if is_new:
             self.save()
         species = {k: {'n': v['name'], 'el': v['el'], 'fam': v['fam'], 'base': v['base'], 'grow': v['grow'],
-                       'skills': v['skills'], 'egg': 'egg' in v} for k, v in SPECIES.items()}
+                       'skills': v['skills'], 'egg': 'egg' in v, 'love': v.get('love'), 'hate': v.get('hate'),
+                       'trick': v.get('trick')} for k, v in SPECIES.items()}
         classes = {k: {'n': v['name'], 'desc': v['desc'], 'skills': v['skills']} for k, v in CLASSES.items()}
+        care = {k: CARE[k] for k in ('hungry', 'full', 'sync_bond', 'guard_bond', 'bank_max', 'assist')}
+        care['trick_bond'] = INTERACT['trick']['need_bond']
         ws.send({'t': 'welcome', 'id': p.id, 'name': name, 'cls': p.cls, 'w': W, 'h': H, 'tiles': self.tiles_str,
                  'npcs': NPCS, 'species': species, 'classes': classes, 'pskills': PET_SKILLS, 'items': ITEMS,
                  'elements': ELEMENTS, 'statusNames': STATUS_NAMES, 'weather': {k: v['name'] for k, v in WEATHER.items()},
-                 'hatchTime': HATCH_TIME, 'hatchWarmup': HATCH_WARMUP, 'petMax': PET_MAX})
+                 'hatchTime': HATCH_TIME, 'hatchWarmup': HATCH_WARMUP, 'petMax': PET_MAX,
+                 'foods': list(FOODS), 'tasteNames': TASTE_NAMES, 'care': care, 'art': ART,
+                 'interact': {k: {'n': v['name'], 'cd': v['cd']} for k, v in INTERACT.items()}})
         self.broadcast_sys('%s 進入了遊戲。' % name)
         if is_new:
             self.sys(p, '歡迎來到幻想之境!你的第一個夥伴是「噗噗」。按 P 可以查看寵物。')
             self.sys(p, '走出村莊就會遇到野生寵物。打到虛弱時用「封印卡」收服牠們吧!按 H 查看操作說明。')
+            self.sys(p, '寵物也會肚子餓喔!噗噗最愛吃「莓果」,道具商人莉莉那裡買得到。')
         else:
             self.sys(p, '歡迎回來,%s!' % name)
+            away = time.time() - float(rec.get('last', time.time()))
+            if away >= CARE['miss_you'] and p.pets:
+                pt = p.pets[p.active]
+                self.sys(p, '%s 一看到你就撲了過來,看起來好想你!' % pt['n'])
+                self.add_fx('pact', p.x, p.y, id=p.id, a='miss', r='ok', act=1, sp=pt['sp'])
         print('[登入] %s (%s) 線上人數 %d' % (name, CLASSES[p.cls]['name'], len(self.players)))
         return p
 
@@ -606,6 +674,10 @@ class Game:
             return self.pet_release(p, m.get('i'))
         if t == 'psell':
             return self.pet_sell(p, m.get('i'))
+        if t == 'feed':
+            return self.feed(p, m.get('i'), m.get('item'), now)
+        if t == 'pact':
+            return self.pet_interact(p, m.get('i'), str(m.get('a', '')), now)
         if t == 'use':
             return self.use_item(p, m.get('slot'), m.get('item'))
         if t == 'buy':
@@ -618,6 +690,7 @@ class Game:
             return self.hatch_start(p, m.get('slot'), now)
         if p.battle:   # 戰鬥中不能移動
             return
+        p.idle_since = now
         if t == 'move':
             gx, gy = int(float(m['x'])), int(float(m['y']))
             p.clear_actions()
@@ -719,9 +792,7 @@ class Game:
             return
         if len(p.pets) <= 1:
             return self.sys(p, '你只剩這一隻寵物了,不能放生喔。')
-        p.pets.pop(i)
-        p.active = min(p.active, len(p.pets) - 1)
-        p.pets_dirty = True
+        p.remove_pet(i)
         self.sys(p, '你放生了 %s。牠回頭看了你一眼,消失在草叢裡……' % pt['n'])
 
     def pet_sell(self, p, i):
@@ -733,11 +804,147 @@ class Game:
         if len(p.pets) <= 1:
             return self.sys(p, '你只剩這一隻寵物了,不能賣喔。')
         price = pet_price(pt)
-        p.pets.pop(i)
-        p.active = min(p.active, len(p.pets) - 1)
+        p.remove_pet(i)
         p.gold += price
         p.pets_dirty = p.inv_dirty = True
         self.sys(p, '把 %s 賣給了葛莉絲婆婆,獲得 %d 金幣。' % (pt['n'], price))
+
+    # ---------- 寵物照顧 ----------
+    def add_food(self, p, pt, delta):
+        """改變飽食度,跨過「肚子餓」「餓昏」時通知主人"""
+        old = pt['food']
+        pt['food'] = round(clamp(old + delta), 4)
+        if old >= CARE['hungry'] > pt['food'] and pt['food'] > 0:
+            self.sys(p, '%s 肚子餓了……餵牠吃點東西吧。' % pt['n'])
+            p.pets_dirty = True
+        if old > 0 >= pt['food']:
+            pt['bond'] = clamp(pt['bond'] + CARE['starve_bond'])
+            self.sys(p, '%s 餓昏了!牠不肯戰鬥了,快餵牠吃東西!' % pt['n'], 'err')
+            p.pets_dirty = True
+        elif old <= 0 < pt['food']:
+            p.pets_dirty = True
+
+    def add_joy(self, pt, delta):
+        pt['joy'] = round(clamp(pt['joy'] + delta), 4)
+
+    def add_bond(self, pt, delta):
+        pt['bond'] = round(clamp(pt['bond'] + delta), 4)
+
+    def feed(self, p, i, item, now):
+        pt = self.get_pet(p, i)
+        if pt is None or item not in FOODS:
+            return
+        if p.battle:
+            return self.sys(p, '戰鬥中不能餵食。')
+        if self.count_item(p, item) <= 0:
+            return self.sys(p, '你沒有%s了。' % FOODS[item]['name'])
+        p.idle_since = now
+        act = int(i == p.active)
+        if pt['food'] >= CARE['full']:
+            self.add_fx('pact', p.x, p.y, id=p.id, a='feed', r='full', act=act, sp=pt['sp'])
+            return self.sys(p, '%s 已經吃得飽飽的,吃不下了。' % pt['n'])
+        tst = taste(pt['sp'], item)
+        fill, joy, bond = TASTE[tst]
+        self.take_item(p, item)
+        self.add_food(p, pt, fill)
+        self.add_joy(pt, joy)
+        self.add_bond(pt, bond)
+        name = FOODS[item]['name']
+        self.sys(p, {'love': '%s 吃了%s,開心得跳了起來!(最愛的食物)',
+                     'like': '%s 把%s吃得津津有味。',
+                     'ok': '%s 把%s吃掉了。',
+                     'hate': '%s 皺著眉頭吃掉了%s……好像很討厭。'}[tst] % (pt['n'], name))
+        self.add_fx('pact', p.x, p.y, id=p.id, a='feed', r=tst, f=item, act=act, sp=pt['sp'])
+        p.pets_dirty = True
+
+    def pet_interact(self, p, i, a, now):
+        """互動動作:摸摸 / 玩耍 / 表演"""
+        pt = self.get_pet(p, i)
+        cfg = INTERACT.get(a)
+        if pt is None or cfg is None or p.battle:
+            return
+        if cfg.get('need_bond') and pt['bond'] < cfg['need_bond']:
+            return self.sys(p, '%s 跟你還不夠親(親密度要 %d),不肯表演。' % (pt['n'], cfg['need_bond']))
+        if cfg.get('need_food') and pt['food'] < cfg['need_food']:
+            return self.sys(p, '%s 肚子太餓了,沒力氣玩。' % pt['n'])
+        cds = p.cd.setdefault(pt['uid'], {})
+        if a == 'trick' and now < cds.get('anim', 0):
+            return   # 表演動畫還沒做完
+        gain = now >= cds.get(a, 0)
+        p.idle_since = now
+        if gain:
+            cds[a] = now + cfg['cd']
+            self.add_joy(pt, cfg['joy'])
+            self.add_bond(pt, cfg['bond'])
+            if cfg['food']:
+                self.add_food(p, pt, cfg['food'])
+            p.pets_dirty = True
+        n = pt['n']
+        if a == 'pet':
+            self.sys(p, ('你摸了摸 %s,牠舒服地瞇起了眼睛。' if gain else '%s 被摸得有點不耐煩了,晚點再摸吧。') % n)
+        elif a == 'play':
+            self.sys(p, ('你陪 %s 玩了一會兒,牠玩得好開心!' if gain else '%s 玩累了,晚點再陪牠玩吧。') % n)
+        else:
+            cds['anim'] = now + 3
+            self.sys(p, '%s 表演了「%s」!' % (n, SPECIES[pt['sp']]['trick'][0]))
+        self.add_fx('pact', p.x, p.y, id=p.id, a=a, r='ok' if gain else 'cd', act=int(i == p.active), sp=pt['sp'])
+
+    def run_away(self, p, pt):
+        """溫和版離家出走:跑去寵物旅館賭氣"""
+        if pt not in p.pets:
+            return
+        p.remove_pet(p.pets.index(pt))
+        d = derive(pt['lv'], pt['st'])
+        pt['hp'], pt['mp'] = d['mhp'], d['mmp']
+        pt['sulk'] = True
+        pt['food'] = max(pt['food'], float(CARE['sulk_food']))
+        self.add_bond(pt, CARE['sulk_bond'])
+        p.bank.append(pt)
+        p.sulk.pop(pt['uid'], None)
+        p.bank_dirty = True
+        self.add_fx('pact', p.x, p.y, id=p.id, a='runaway', r='ok', act=1, sp=pt['sp'])
+        self.sys(p, '%s 受不了了,賭氣跑去村裡的寵物旅館了!去找旅館的蘿絲帶牠回來吧。' % pt['n'], 'err')
+
+    def care_tick(self, p, now, dt):
+        """每秒一次:飽食度消耗、快樂值變化、離家出走、旅館裡的寵物恢復心情 (只有線上時才會跑)"""
+        h = dt / 3600.0
+        for i, pt in enumerate(list(p.pets)):
+            self.add_food(p, pt, -(CARE['food_active'] if i == p.active else CARE['food_other']) * h)
+            joy = -CARE['joy_decay'] * h
+            if pt['food'] <= 0:
+                joy -= CARE['joy_starve'] * h
+            elif pt['food'] < CARE['hungry']:
+                joy -= CARE['joy_hungry'] * h
+            self.add_joy(pt, joy)
+            uid = pt['uid']
+            if pt['food'] <= 0 and pt['joy'] <= 0 and not p.battle:
+                s = p.sulk.get(uid, 0.0) + dt
+                p.sulk[uid] = s
+                if s - dt < CARE['sulk_warn'] <= s:
+                    self.sys(p, '%s 好像快受不了了……再不理牠,牠可能會離家出走!' % pt['n'], 'err')
+                if s >= CARE['sulk_leave']:
+                    self.run_away(p, pt)
+            else:
+                p.sulk.pop(uid, None)
+        for pt in p.bank:
+            if pt['joy'] < 100:
+                self.add_joy(pt, CARE['joy_bank'] * h)
+        p.care_n += 1
+        if p.care_n % 10 == 0:
+            p.pets_dirty = True
+            if p.bank:
+                p.bank_dirty = True
+
+    def pets_msg(self, p, now):
+        idle = now - p.idle_since if not p.battle else 0
+        out = []
+        for pt in p.pets:
+            v = pet_view(pt)
+            v['mood'] = pet_mood(pt, idle)
+            cds = p.cd.get(pt['uid'], {})
+            v['cd'] = {a: max(0, int(cds.get(a, 0) - now)) for a in INTERACT}
+            out.append(v)
+        return {'t': 'pets', 'pets': out, 'act': p.active}
 
     def give_pet_exp(self, p, pt, amount):
         pt['exp'] += amount
@@ -811,6 +1018,10 @@ class Game:
         if not isinstance(slot, int) or not 0 <= slot < len(p.inv):
             return
         it = ITEMS[p.inv[slot]['id']]
+        if it['type'] == 'food':
+            if not p.pets:
+                return self.sys(p, '你身上沒有寵物可以餵。')
+            return self.feed(p, p.active, p.inv[slot]['id'], time.time())
         if it['type'] == 'egg':
             return self.sys(p, '蛋要拿到孵化屋找葛莉絲婆婆孵化喔。')
         if it['type'] != 'use':
@@ -919,7 +1130,7 @@ class Game:
         if not isinstance(slot, int) or not 0 <= slot < len(p.inv) or ITEMS[p.inv[slot]['id']]['type'] != 'egg':
             return
         if len(p.pets) >= PET_MAX:
-            return self.sys(p, '寵物已經有 %d 隻了,先賣掉或放生一隻再來孵吧。' % PET_MAX)
+            return self.sys(p, '身上的寵物已經有 %d 隻了,先寄放到寵物旅館、賣掉或放生一隻再來孵吧。' % PET_MAX)
         egg = p.inv[slot]['id']
         self.take_item(p, egg)
         p.hatch = {'egg': egg, 'sp': ITEMS[egg]['sp'], 'start': now, 'kt': 50.0, 'kh': 50.0,
@@ -951,7 +1162,7 @@ class Game:
         if el >= HATCH_TIME:
             avg = h['sum'] / h['n'] if h['n'] else c
             q = max(0, min(12, int(round(12 * avg ** 1.5))))
-            pt = new_pet(h['sp'], 1, q)
+            pt = new_pet(h['sp'], 1, q, start='hatch')
             p.hatch = None
             p.pets.append(pt)
             p.pets_dirty = True
@@ -1496,7 +1707,7 @@ class Game:
         if tg.boss or not SPECIES.get(tg.sp, {}).get('cap'):
             return self.sys(p, '%s 太強大了,無法封印!' % tg.name)
         if len(p.pets) >= PET_MAX:
-            return self.sys(p, '寵物已經有 %d 隻了,沒有空的封印卡欄位。' % PET_MAX)
+            return self.sys(p, '身上的寵物已經有 %d 隻了,沒有空的封印卡欄位(可以寄放到村裡的寵物旅館)。' % PET_MAX)
         if not self.take_item(p, 'seal_card'):
             return self.sys(p, '你沒有封印卡了!')
         chance = SPECIES[tg.sp]['cap'] * (1.15 - tg.hp / tg.mhp) * CLASSES[p.cls]['cap']
@@ -1509,7 +1720,7 @@ class Game:
         self.bfx(b, 'act', s=u.id, t=tg.id, w='owner_seal', n='封印卡', ty='owner')
         self.bfx(b, 'cap', s=u.id, id=tg.id, ok=int(ok), pct=int(chance * 100))
         if ok:
-            pt = new_pet(tg.sp, tg.lv, tg.q)
+            pt = new_pet(tg.sp, tg.lv, tg.q, start='wild')
             p.pets.append(pt)
             p.pets_dirty = True
             b.exp += tg.exp // 2
@@ -1686,6 +1897,7 @@ class Game:
             self.follow_path(p, p.spd, dt)
         moved = dist(bx, by, p.x, p.y)
         if moved > 0:
+            p.idle_since = now
             self.encounter_check(p, moved, now)
 
     def tick(self):
@@ -1701,6 +1913,8 @@ class Game:
             self.broadcast_sys('大地在震動……炎龍在北方焦土甦醒了!', 'ann')
         if now - self.last_regen >= 1.0:
             self.last_regen = now
+            for p in list(self.players.values()):
+                self.care_tick(p, now, 1.0)
             for p in self.players.values():
                 if p.battle:
                     continue
@@ -1733,11 +1947,11 @@ class Game:
         fx, self.fx = self.fx, []
         ents = []
         for p in self.players.values():
-            pi = p.alive_pet() if not p.battle else None
-            pt = p.pets[pi] if pi is not None else None
+            pt = p.pets[p.active] if p.pets and not p.battle and p.pets[p.active]['hp'] > 0 else None
             ents.append((p.x, p.y, {'i': p.id, 'k': 'p', 'x': round(p.x, 2), 'y': round(p.y, 2), 'n': p.name,
                                     'lv': p.lv, 'c': p.cls, 'f': p.face, 'mv': int(p.moving), 'b': p.battle or 0,
-                                    'pt': pt['sp'] if pt else '', 'pn': pt['n'] if pt else ''}))
+                                    'pt': pt['sp'] if pt else '', 'pn': pt['n'] if pt else '',
+                                    'pm': pet_mood(pt, now - p.idle_since) if pt else ''}))
         bs = self.boss
         if bs['alive'] and not bs['battle']:
             ents.append((bs['x'], bs['y'], {'i': bs['i'], 'k': 'm', 'x': bs['x'], 'y': bs['y'], 'c': 'dragon',
@@ -1761,7 +1975,7 @@ class Game:
                 p.ws.send({'t': 'inv', 'inv': p.inv, 'g': p.gold})
             if p.pets_dirty:
                 p.pets_dirty = False
-                p.ws.send({'t': 'pets', 'pets': [pet_view(pt) for pt in p.pets], 'act': p.active})
+                p.ws.send(self.pets_msg(p, now))
 
     async def run(self):
         nxt = time.perf_counter()
