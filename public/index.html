@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>幻想之境 Online</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ======================= 登入畫面 ======================= -->
+<div id="login">
+  <canvas id="sky"></canvas>
+  <div class="login-wrap">
+    <h1 class="logo">幻想之境<span>F A N T A S I A &nbsp; O N L I N E</span></h1>
+    <div class="panel login-panel">
+      <div class="title"><span>◆ 會員登入</span></div>
+      <div class="body">
+        <div class="server">伺服器:<b>艾爾文</b> <span class="ok">● 順暢</span></div>
+        <div class="row"><label for="lg-name">角色名稱</label><input id="lg-name" maxlength="12" autocomplete="off" spellcheck="false"></div>
+        <div class="row"><label for="lg-pass">密　　碼</label><input id="lg-pass" type="password" maxlength="32" placeholder="可留空"></div>
+        <div class="cls-title">選擇職業 <small>(輸入新名稱時會建立新角色)</small></div>
+        <div class="cls-list">
+          <label class="cls"><input type="radio" name="cls" value="warrior" checked><canvas data-cls="warrior" width="56" height="60"></canvas><b>劍士</b><small>血厚近戰<br>勇往直前</small></label>
+          <label class="cls"><input type="radio" name="cls" value="mage"><canvas data-cls="mage" width="56" height="60"></canvas><b>法師</b><small>強力魔法<br>遠距輸出</small></label>
+          <label class="cls"><input type="radio" name="cls" value="archer"><canvas data-cls="archer" width="56" height="60"></canvas><b>弓手</b><small>射程最遠<br>身手敏捷</small></label>
+        </div>
+        <button id="lg-btn" class="big">進 入 遊 戲</button>
+        <div id="lg-err"></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="rating">普遍級</span>
+      本遊戲內容適合各年齡層 · 建議解析度 1024×768 以上 · 請注意遊戲時間,避免沉迷<br>
+      Copyright © 2003 Fantasia Online. All Rights Reserved.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= 遊戲畫面 ======================= -->
+<div id="game" hidden>
+  <canvas id="view"></canvas>
+
+  <div id="status" class="panel">
+    <canvas id="portrait" width="56" height="56"></canvas>
+    <div class="st-head">
+      <div id="st-name"></div>
+      <div class="st-sub">Lv.<b id="st-lv">1</b> <span id="st-cls"></span></div>
+    </div>
+    <div class="bars">
+      <div class="bar hp"><i id="bar-hp"></i><span id="txt-hp"></span></div>
+      <div class="bar mp"><i id="bar-mp"></i><span id="txt-mp"></span></div>
+      <div class="bar xp"><i id="bar-xp"></i><span id="txt-xp"></span></div>
+    </div>
+    <div class="st-stats">攻擊 <b id="st-atk">0</b>　防禦 <b id="st-def">0</b>　金幣 <b id="st-gold" class="gold">0</b></div>
+  </div>
+
+  <div id="mini" class="panel">
+    <div class="title"><span>艾爾文大陸</span><span id="coords"></span></div>
+    <canvas id="minimap" width="150" height="150"></canvas>
+  </div>
+
+  <div id="chat">
+    <div id="chat-log"></div>
+    <input id="chat-in" maxlength="100" placeholder="按 Enter 開始聊天…" autocomplete="off">
+  </div>
+
+  <div id="hotbar" class="panel"></div>
+
+  <div id="menu" class="panel">
+    <button data-win="inv">背包 (I)</button>
+    <button data-win="help">說明 (H)</button>
+    <button id="btn-snd">音效:開</button>
+  </div>
+
+  <div id="win-inv" class="panel win" hidden style="right:16px;top:200px">
+    <div class="title"><span>背包</span><b class="x">×</b></div>
+    <div class="body">
+      <div class="equip">
+        <div><div class="slot" id="eq-weapon"></div><small>武器</small></div>
+        <div><div class="slot" id="eq-armor"></div><small>防具</small></div>
+        <div class="eq-stats" id="inv-stats"></div>
+      </div>
+      <div class="grid" id="inv-grid"></div>
+      <div class="inv-foot">金幣:<b class="gold" id="inv-gold">0</b></div>
+      <div class="hint">雙擊:使用/裝備 · 商店開啟時右鍵:販賣</div>
+    </div>
+  </div>
+
+  <div id="win-dlg" class="panel win" hidden style="left:50%;top:22%;margin-left:-190px;width:380px">
+    <div class="title"><span id="dlg-name"></span><b class="x">×</b></div>
+    <div class="body">
+      <div id="dlg-text"></div>
+      <div id="dlg-opts"></div>
+    </div>
+  </div>
+
+  <div id="win-shop" class="panel win" hidden style="left:50%;top:18%;margin-left:-420px;width:300px">
+    <div class="title"><span>道具商店</span><b class="x">×</b></div>
+    <div class="body">
+      <div id="shop-list"></div>
+      <div class="hint">Shift+點擊購買 10 個 · 在背包按右鍵可販賣物品</div>
+    </div>
+  </div>
+
+  <div id="win-help" class="panel win" hidden style="left:50%;top:15%;margin-left:-200px;width:400px">
+    <div class="title"><span>操作說明</span><b class="x">×</b></div>
+    <div class="body help">
+      <table>
+        <tr><th>滑鼠左鍵</th><td>移動 / 攻擊怪物 / 和 NPC 對話 / 撿取物品</td></tr>
+        <tr><th>W A S D、方向鍵</th><td>移動</td></tr>
+        <tr><th>空白鍵</th><td>攻擊最近的怪物</td></tr>
+        <tr><th>1、2</th><td>使用技能 (2 號技能 Lv.5 解鎖)</td></tr>
+        <tr><th>3、4</th><td>紅色藥水 / 藍色藥水</td></tr>
+        <tr><th>I / H / M</th><td>背包 / 說明 / 音效開關</td></tr>
+        <tr><th>Enter</th><td>聊天 (所有人都看得到)</td></tr>
+        <tr><th>/w 名稱 訊息</th><td>密語給某位玩家</td></tr>
+        <tr><th>/who</th><td>查看線上玩家</td></tr>
+      </table>
+      <p>越往地圖外圍,怪物越強。村莊裡是安全區,怪物不會進來,而且回復速度更快。</p>
+      <p>北方焦土住著 <b class="gold">Lv.25 炎龍</b>,每 3 分鐘重生一次。找朋友組隊一起挑戰吧!</p>
+    </div>
+  </div>
+
+  <div id="overlay" hidden>
+    <div class="panel">
+      <div class="title"><span id="ov-title">你已經死亡</span></div>
+      <div class="body">
+        <p id="ov-text">勝敗乃兵家常事,大俠請重新來過。</p>
+        <button id="ov-btn" class="big">在村莊復活</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tip" hidden></div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

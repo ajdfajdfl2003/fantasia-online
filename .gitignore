@@ -1,0 +1,7 @@
+# 玩家存檔 (每台機器各自的資料)
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.tmp
