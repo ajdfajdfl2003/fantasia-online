@@ -47,7 +47,9 @@ def gm(g, p, args):
         mhp = pu.mhp if pu else derive(pt['lv'], pt['st'])['mhp']
         hp = max(1, int(mhp * num(100) / 100))
         pt['hp'] = hp
-        if pu:
+        if pu and not pu.alive:   # 倒下了:用復活的方式救回來
+            g.revive(b, pu, num(100) / 100)
+        elif pu:
             pu.hp = hp
         p.pets_dirty = True
         return g.sys(p, '%s HP = %d' % (pt['n'], hp))
