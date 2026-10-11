@@ -17,11 +17,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('FANTASIA_DATA', os.path.join(ROOT, 'data', 'debug'))
 sys.path.insert(0, ROOT)
 import server  # noqa: E402
-from server import CARE, ITEMS, PET_MAX, SPECIES, Game, derive, new_pet, time  # noqa: E402
+from server import CARE, ITEMS, PET_MAX, SKILL_TIERS, SPECIES, Game, derive, new_pet, time  # noqa: E402
 
 HELP = ('/gm 指令(出戰寵物):food / joy / bond / sync 數值、php N(寵物 HP N%)、hp N(主人 HP N%)、'
         'enc [+N](立刻遇敵,敵人等級 +N)、sulk [秒](幾秒後離家出走)、miss(想你了)、'
-        'away(下次登入算離線兩天)、pet 種族代號 [等級](新增一隻並出戰)、give 道具代號 [數量]、gold N')
+        'away(下次登入算離線兩天)、pet 種族代號 [等級](新增一隻並出戰)、lv N(出戰寵物等級)、q N(天生素質)、inh 技能代號(遺傳技能)、'
+        'give 道具代號 [數量]、gold N')
 
 _chat, _wild_unit, _logout = Game.chat, Game.wild_unit, Game.logout
 
@@ -46,7 +47,9 @@ def gm(g, p, args):
         mhp = pu.mhp if pu else derive(pt['lv'], pt['st'])['mhp']
         hp = max(1, int(mhp * num(100) / 100))
         pt['hp'] = hp
-        if pu:
+        if pu and not pu.alive:   # 倒下了:用復活的方式救回來
+            g.revive(b, pu, num(100) / 100)
+        elif pu:
             pu.hp = hp
         p.pets_dirty = True
         return g.sys(p, '%s HP = %d' % (pt['n'], hp))
@@ -76,6 +79,23 @@ def gm(g, p, args):
     if cmd == 'away':
         p.gm_away = True
         return g.sys(p, '下次登入時算成離線兩天。')
+    if cmd == 'lv' and pt and not p.battle:
+        lv = int(max(1, min(99, num(pt['lv']))))
+        pt['pts'] += max(0, lv - pt['lv']) * SPECIES[pt['sp']]['grow']
+        pt['lv'], pt['exp'] = lv, 0
+        d = derive(lv, pt['st'])
+        pt['hp'], pt['mp'] = d['mhp'], d['mmp']
+        g.check_evo_ready(p, pt)
+        p.pets_dirty = True
+        return g.sys(p, '%s Lv.%d' % (pt['n'], lv))
+    if cmd == 'inh' and pt:
+        pt['inh'] = val if val in SKILL_TIERS else None
+        p.pets_dirty = True
+        return g.sys(p, '%s 遺傳技能 = %s' % (pt['n'], pt['inh']))
+    if cmd == 'q' and pt:
+        pt['q'] = int(max(0, min(12, num(pt['q']))))
+        p.pets_dirty = True
+        return g.sys(p, '%s 天生素質 = %d' % (pt['n'], pt['q']))
     if cmd == 'pet' and val in SPECIES:
         if len(p.pets) >= PET_MAX or p.battle:
             return g.sys(p, '身上滿了或在戰鬥中。')

@@ -12,7 +12,7 @@ const S = {
   species: {}, classes: {}, pskills: {}, items: {}, elements: {}, statusNames: {}, weatherNames: {},
   hatchTime: 60, hatchWarmup: 20, petMax: 5,
   foods: [], tasteNames: {}, care: {}, art: {}, interact: {},
-  me: null, inv: [], gold: 0, pets: [], act: 0, hatch: null, bank: [], bankMax: 20,
+  me: null, inv: [], gold: 0, pets: [], act: 0, hatch: null, bank: [], bankMax: 20, beggs: [], breed: {}, exclusive: {},
   myBattle: 0, target: 0, allyTarget: 0, auto: false,
   ox: 0, oy: 0, mouse: { x: -1, y: -1, in: false }, hover: null, keys: {}, dir: [0, 0],
   floats: [], projs: [], impacts: [], beams: [], marks: [], dying: [], banners: [], hitDelay: {}, parts: [], leaving: [],
@@ -83,6 +83,10 @@ function onMsg(m) {
     case 'petsell': UI.openPets(true); break;
     case 'bank': S.bank = m.bank; S.bankMax = m.max; UI.bank(); break;
     case 'bankui': UI.openBank(); break;
+    case 'breedui': UI.openBreed(); break;
+    case 'bprev': UI.breedPreview(m); break;
+    case 'bred': UI.bred(m); break;
+    case 'beggs': S.beggs = m.eggs; UI.beggs(); break;
     case 'bend': onBattleEnd(m); break;
   }
 }
@@ -99,7 +103,9 @@ function startGame(m) {
   Object.assign(S, { npcs: m.npcs, species: m.species, classes: m.classes, pskills: m.pskills, items: m.items,
     elements: m.elements, statusNames: m.statusNames, weatherNames: m.weather,
     hatchTime: m.hatchTime, hatchWarmup: m.hatchWarmup, petMax: m.petMax,
-    foods: m.foods || [], tasteNames: m.tasteNames || {}, care: m.care || {}, art: m.art || {}, interact: m.interact || {} });
+    foods: m.foods || [], tasteNames: m.tasteNames || {}, care: m.care || {}, art: m.art || {}, interact: m.interact || {},
+    exclusive: m.exclusive || {}, breed: m.breed || {} });
+  setLooks(m.species);   // 進化型態的樣子 (沒有圖時用初階變色、放大)
   cv = $('#view'); ctx = cv.getContext('2d'); mm = $('#minimap'); mmc = mm.getContext('2d');
   paintTrees(); buildMinimap();
   ART.onload = () => UI.artChanged();
@@ -283,6 +289,13 @@ function handleFx(f, t) {
       if (f.id === S.myId) sfx('heal');
       break;
     case 'pact': petReaction(f, t); break;
+    case 'evolve': {   // 進化:寵物身上升起光柱
+      S.beams.push({ id: f.id, t0: t, dur: 2400, evo: true });
+      const fo = S.followers.get(f.id);
+      if (fo && f.act) petAnim(fo, 'jump', t);
+      if (f.id === S.myId) sfx('lvl');
+      break;
+    }
   }
 }
 
@@ -376,6 +389,10 @@ function petReaction(f, t) {
     }
     case 'miss':
       petAnim(fo, 'miss', t); burst('heart', 6, t, { ...P, gap: 250 }); followerFloat(pid, '想你了!', '#ffb0d0', t, 15);
+      break;
+    case 'breed':   // 配對成功
+      petAnim(fo, 'hop', t); burst('heart', 6, t, { ...P, gap: 150 }); followerFloat(pid, '♥ 配對成功', '#ff8ac0', t, 14);
+      if (mine) sfx('capture');
       break;
   }
 }
@@ -535,6 +552,12 @@ function battleFx(f, t) {
       if (mine) sfx('lvl');
       break;
     }
+    case 'steal': {   // 順手牽羊
+      const u = U(f.id);
+      if (u) S.floats.push({ uid: u.i, text: `+${f.v} 金幣`, col: '#ffd84a', size: 14, t0: t + 200, dur: 1300, font: FONT, head: 0.6 });
+      if (mine) sfx('pick');
+      break;
+    }
     case 'boost': { const u = U(f.id); if (u) S.floats.push({ uid: u.i, text: `助攻 +${f.v}%`, col: '#ffcf70', size: 12, t0: t + 250, dur: 1100, font: FONT, head: -0.45 }); break; }
     case 'disobey': {
       const u = U(f.id);
@@ -569,7 +592,8 @@ function updateFollowers(dt) {
     let f = S.followers.get(e.i);
     const gap = followGap(e.pt);   // 跟在主人身後
     const tx = e.rx - (e.f || 1) * gap, ty = e.ry - 0.1;
-    if (!f || f.sp !== e.pt) { f = { x: tx, y: ty, sp: e.pt, face: e.f || 1, walk: false }; S.followers.set(e.i, f); }
+    if (!f) { f = { x: tx, y: ty, sp: e.pt, face: e.f || 1, walk: false }; S.followers.set(e.i, f); }
+    f.sp = e.pt;   // 換出戰寵物、進化:原地換樣子 (進化的動畫才不會被打斷)
     f.mood = e.pm || '';
     if (f.anim && now > f.anim.t0 + f.anim.dur) f.anim = null;
     const d = Math.hypot(tx - f.x, ty - f.y);
@@ -928,14 +952,16 @@ function drawEffects(t) {
   for (const b of S.beams) {
     const e = S.ents.get(b.id);
     if (!e) continue;
-    const [x, y] = feet(e), k = (t - b.t0) / b.dur;
+    const fo = b.evo && S.followers.get(b.id);   // 進化的光柱在寵物身上
+    const [x, y] = fo ? [fo.x * TILE + S.ox, fo.y * TILE + S.oy + 8] : feet(e), k = (t - b.t0) / b.dur;
     ctx.save(); ctx.globalAlpha = k < 0.8 ? 1 : (1 - k) / 0.2;
     const gr = ctx.createLinearGradient(x - 22, 0, x + 22, 0);
-    const c = b.tp ? '120,220,255' : b.hatch ? '255,180,220' : '255,220,90';
+    const c = b.tp ? '120,220,255' : b.hatch ? '255,180,220' : b.evo ? '200,240,255' : '255,220,90';
     gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(0.5, `rgba(${c},.7)`); gr.addColorStop(1, `rgba(${c},0)`);
     ctx.fillStyle = gr; ctx.fillRect(x - 22, y - 220, 44, 225);
     for (let i = 0; i < 8; i++) { const py = y - ((t / 4 + i * 37) % 160), pxx = x + Math.sin(i * 2 + t / 200) * 16; ctx.fillStyle = '#fff'; ctx.fillRect(pxx, py, 3, 3); }
-    if (!b.tp) text(b.hatch ? '孵化成功!' : 'LEVEL UP!!', x, y - 70 - k * 40, b.hatch ? '#ffb0e0' : '#ffe14a', 22, b.hatch ? FONT : NUMFONT, true);
+    if (b.evo) text('進化!', x, y - 70 - k * 40, '#c8f0ff', 22, FONT, true);
+    else if (!b.tp) text(b.hatch ? '孵化成功!' : 'LEVEL UP!!', x, y - 70 - k * 40, b.hatch ? '#ffb0e0' : '#ffe14a', 22, b.hatch ? FONT : NUMFONT, true);
     ctx.restore();
   }
 }
@@ -1219,11 +1245,10 @@ function bindInput() {
     if (S.myBattle) {   // 戰鬥快捷鍵
       if (e.repeat) return;
       const { p } = myUnits();
-      const skills = p ? (S.species[p.c] || {}).skills || [] : [];
-      const learned = p ? skills.filter(([, lv]) => p.lv >= lv).map(([s]) => s) : [];
+      const learned = p ? UI.petSkillList(p) : [];
       if (k === '1') petCmd('atk');
-      else if (k >= '2' && k <= '4') { const s = learned[+k - 2]; if (s) petCmd('skill', s); }
-      else if (k === '5') petCmd('def');
+      else if (k >= '2' && k <= '6') { const s = learned[+k - 2]; if (s) petCmd('skill', s); }
+      else if (k === 'g') petCmd('def');
       else if (k === 'q' || k === 'w' || k === 'e') ownerSkill('qwe'.indexOf(k));
       else if (k === 'r') ownerCmd('item', { item: 'red_potion' });
       else if (k === 'c') ownerCmd('cap');

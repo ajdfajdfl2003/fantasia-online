@@ -6,6 +6,8 @@
 #   - 動作圖明講「不要重新設計、不要加減特徵、大小跟上一張一樣 (約佔寬度 70%)」
 #   - 表情拆成 Pose / Expression 兩行,攻擊明講 NOT smiling,受傷用 > < 眼,睡著用往下彎的閉眼線
 #   - 不再要求「火焰變小」之類會改變輪廓大小的描述
+# 2026-10-11 階段 3:加入進化型態 (中階、高階) 與 2 種混種,共 39 個種族
+#   - 進化型態的主圖要先上傳初階的圖當參考,動作圖沿用初階的姿勢
 import sys
 
 OUT = sys.argv[1]
@@ -128,6 +130,99 @@ pet('drake', '幼龍', 'a chubby baby dragon with two small horns, small bat-lik
     atk_allow=' (the small flame coming from its mouth is the only effect allowed)',
     sleep_allow=' (a tiny smoke puff from its nose is the only effect allowed)',
     sleep_face='sound asleep: eyes closed and drawn as gentle downward-curved lines, a tiny smoke puff from its nose')
+pet('silverwolf', '銀月狼', 'a silver moon wolf cub, a hybrid of a wolf and a moon fox, with silver-blue fur, a fluffy fox-like tail, alert pointy ears and a small crescent moon mark on its forehead',
+    'silver blue-gray fur with a pale blue belly and muzzle, white tail tip, bright blue eyes, white fangs, pale yellow crescent moon mark',
+    'standing on four legs, tail held high',
+    'lunging forward toward the right with front paws off the ground, ears pinned forward',
+    'flinching backward toward the left, ears flat against its head, tail tucked',
+    'curled up lying down with its fluffy tail wrapped around its nose',
+    note='混種(野狼 × 月狐,只能配對得到)。想讓牠像爸媽,可以把 art-src/野狼.png 和 art-src/月狐.png 一起上傳當參考。',
+    atk_face='angry and fierce, NOT smiling: brow fur slanted sharply down toward the center, eyes narrowed into a glare, mouth wide open snarling with fangs showing',
+    hurt_face='in pain: eyes squeezed tightly shut and drawn as > < shapes, mouth open in a whimper, one small tear at the corner of an eye')
+pet('duskbird', '暮光鳥', 'a twilight bird, a hybrid of a rainbow dove and a vampire bat, with a round fluffy body, feathered wings with small bat-like claws at the tips, a sunset colored tail fan and two tiny fangs',
+    'dusky purple body with lavender shading, dark purple wings, tail feathers in orange, coral, magenta and indigo, golden beak, red eyes, white fangs',
+    'flying with wings flapping',
+    'diving forward toward the right in the air, beak pointed forward, wings raised behind it with the same spread as before',
+    'tumbling backward toward the left in the air, feathers ruffled, wings flung up with the same spread as before',
+    'dozing while hovering in the air (it is a flying pet), head drooping onto its chest, wings spread in a slow glide with the same spread as before',
+    note='混種(彩虹鴿 × 吸血蝙蝠,只能配對得到)。可以把 art-src/彩虹鴿.png 和 art-src/吸血蝙蝠.png 一起上傳當參考。'
+         '會飛的寵物,睡著也畫成在空中打瞌睡。',
+    atk_face='angry and fierce, NOT cute-smiling: brow feathers slanted sharply down toward the center in a V shape, eyes narrowed into a glare, beak open showing tiny fangs',
+    hurt_face='in pain: eyes squeezed tightly shut and drawn as > < shapes, beak open in a squawk, one small tear')
+
+# 進化型態:初階代號 → ((中階描述, 中階配色), (高階描述, 高階配色));名字和代號跟 game_data.FORMS 一致
+EVO = {
+    'poring': (('a bigger round jelly blob creature with a glossy bouncy body, two curled sprouts on top, small round hands and feet, determined black oval eyes and a confident smile',
+                'lilac purple-pink body with lighter pink highlights and white shine spots, green sprouts, black eyes, dark brown outline'),
+               ('a large majestic round jelly blob king with a glossy body, a small golden crown on top, a short red royal cape, tiny round hands and feet, proud black eyes and a confident smile',
+                'warm golden orange jelly body with light yellow highlights and white shine spots, golden crown with red jewels, red cape with white trim, black eyes')),
+    'slime': (('a big slime creature with a translucent wobbly jelly body shaped like a large water drop, two cute eyes, many bubbles inside and a small swirl on top',
+               'translucent teal body with light aqua highlights and white shine, darker teal bubbles inside, black eyes'),
+              ('a huge slime king with a translucent jelly body, a small golden crown floating on top, two confident eyes and glowing bubbles inside',
+               'translucent violet-blue body with light lavender highlights and white shine, glowing pale blue bubbles, golden crown, black eyes')),
+    'goblin': (('a goblin warrior, taller and more muscular, with big pointy ears, a leather helmet, studded leather armor and a wooden club with iron spikes',
+                'olive green skin, yellow eyes, dark brown leather helmet and armor with iron studs, wooden club with gray iron spikes'),
+               ('a goblin chieftain with big pointy ears, a feathered tribal headdress, a fur cloak, war paint stripes on its cheeks and a big bone-and-stone war club',
+                'olive green skin, yellow eyes, red and white headdress feathers, brown fur cloak, red war paint, ivory bone club')),
+    'wolf': (('a young wind wolf, sleek and fast-looking, with longer legs, fur swept back like wind, sharp ears and a bushy tail',
+              'sage green-gray fur with a pale gray belly, darker green streaks like wind, red eyes, white fangs'),
+             ('a majestic wolf king, large and powerful, with a thick mane of fur around its neck, a small scar over one eye, sharp fangs and a proud stance',
+              'jet black fur with dark gray highlights, silver mane tips, glowing red eyes, white fangs')),
+    'skeleton': (('a skeleton knight wearing a dented steel helmet and a breastplate, holding a longsword and a round shield',
+                  'ivory white bones, glowing red eye sockets, bluish steel helmet and breastplate, silver longsword, blue round shield'),
+                 ('a skeleton general wearing an ornate golden helmet with a red plume, golden armor and a tattered red cape, holding a big curved greatsword',
+                  'ivory white bones, glowing red eye sockets, golden helmet and armor, red plume and cape, silver greatsword')),
+    'imp': (('a bigger floating fire imp with a mane of wild flames, longer curved horns, a flame tail, sharp golden eyes, a mischievous fanged grin and little clawed arms',
+             'deep red body; flame hair and flame tail with yellow-white centers, orange middle and crimson tips; dark brown horns; golden eyes'),
+            ('a floating flame demon lord with a crown of blue flames, big curved horns, small bat-like wings, a flame tail, glowing eyes and a confident grin',
+             'dark navy-purple body; blue flames with white centers and cyan to deep blue tips; black horns; glowing white-blue eyes')),
+    'dove': (('a radiant dove, larger, with longer elegant wings, a small feather crest and a long fan of shimmering rainbow tail feathers',
+              'cream white body with warm golden shading, tail feathers in red, yellow, green, blue and purple, orange beak, black eyes'),
+             ('a celestial rainbow bird, majestic, with large wings, a long flowing tail of rainbow feathers, a golden feather crest and a small halo of light above its head',
+              'golden yellow body with white highlights, rainbow tail feathers, golden crest, pale yellow halo, orange beak, black eyes')),
+    'fox': (('a snow moon fox, larger, with two fluffy tails, frosty fur tufts and a brighter crescent moon mark on its forehead',
+             'white fur with icy blue shading, light blue tail tips, bright blue eyes, pink inner ears, silver crescent moon mark'),
+            ('an elegant nine-tailed moon fox with nine flowing fluffy tails fanned behind it and a glowing full moon mark on its forehead',
+             'cream white fur with warm golden shading, golden tail tips, golden eyes, pink inner ears, glowing golden full moon mark')),
+    'bat': (('a blood-wing bat, larger, with jagged leathery wings, sharper fangs and tall pointy ears',
+             'crimson red fuzzy body, dark red wing membranes, glowing yellow eyes, white fangs'),
+            ('a regal night king bat with huge leathery wings, a high fur collar like a vampire cape, sharp fangs and a tiny silver crown',
+             'very dark purple body, black wing membranes with purple edges, glowing red eyes, white fangs, silver crown')),
+    'griffin': (('an armored griffin steed, larger, wearing a light saddle and a steel chest plate, with large feathered wings',
+                 'white eagle head, golden beak, sky blue lion body, blue and white wings, silver armor with a brown leather saddle'),
+                ('a royal griffin, majestic, with huge golden-feathered wings, a royal crest of feathers on its head and golden ornaments on its chest',
+                 'white eagle head with golden crest feathers, golden beak, golden-orange lion body, golden wings with white feather edges, red jewel ornaments')),
+    'drake': (('a young wyvern, slimmer and taller than a baby dragon, with larger wings, longer horns and a longer tail',
+               'red-orange scales, cream belly, ivory horns, red-orange wings with lighter orange membranes, amber eyes'),
+              ('a crimson flame dragon, powerful but still chibi, with big horns, a spiky back, large wings and embers glowing between its scales',
+               'deep crimson scales, orange belly, ivory horns, dark red wings with orange membranes, glowing yellow eyes')),
+    'silverwolf': (('a moon shadow wolf, sleek, with flowing silver-violet fur, a fluffy tail and a glowing crescent moon mark',
+                    'lavender silver fur with violet shading, white tail tip, bright blue eyes, glowing pale yellow crescent moon mark'),
+                   ('a celestial wolf, majestic, with flowing white fur like starlight, a long fluffy tail with tiny sparkles and a glowing full moon mark',
+                    'shining white fur with pale silver shading, pale blue sparkles in the tail, bright blue eyes, glowing golden full moon mark')),
+    'duskbird': (('a night rainbow bird, larger, with long wings and a long tail in night-sky colors dotted with tiny stars',
+                  'deep plum body, indigo wings, tail feathers in magenta, violet and indigo with white star dots, golden beak, red eyes'),
+                 ('a dawn and dusk phoenix, majestic, with large wings whose feathers fade from sunrise orange to night blue, a long flowing tail and a feather crest',
+                  'teal body; wings and tail fading from bright orange and gold to deep blue and purple; golden crest and beak; red eyes')),
+}
+FORM_NAMES = {   # 跟 game_data.FORMS 一樣
+    'poring': ('彈彈噗', '噗噗國王'), 'slime': ('大史萊姆', '史萊姆王'), 'goblin': ('哥布林戰士', '哥布林酋長'),
+    'wolf': ('疾風狼', '狼王'), 'skeleton': ('骷髏騎士', '骷髏將軍'), 'imp': ('火妖', '炎魔'), 'dove': ('虹光鴿', '天虹鳥'),
+    'fox': ('雪月狐', '九尾月狐'), 'bat': ('血翼蝠', '夜王蝠'), 'griffin': ('獅鷲騎獸', '皇家獅鷲'), 'drake': ('飛龍', '赤炎龍'),
+    'silverwolf': ('月影狼', '天狼'), 'duskbird': ('夜虹鳥', '晨昏鳳凰'),
+}
+
+
+def forms_of(base):
+    """初階 → [中階, 高階] 的 prompt 資料:姿勢、動作沿用初階"""
+    out = []
+    for st, ((desc, colors), zh) in enumerate(zip(EVO[base['code']], FORM_NAMES[base['code']])):
+        out.append(dict(base, code=base['code'] + str(st + 2), zh=zh, desc=desc, colors=colors, stage=st + 1, base_zh=base['zh'],
+                        note='%s(%s的%s)。開新對話,先把 `art-src/%s.png` 上傳當參考圖,再貼主圖。'
+                             % ('中階' if st == 0 else '高階', base['zh'], '第二階' if st == 0 else '最終型態', base['zh'])))
+    return out
+
+
 BOSS = dict(code='dragon', zh='炎龍(BOSS)', desc='a huge fierce fire dragon with large horns, a spiky back, big wings spread and menacing glowing eyes, embers around it',
             colors='dark red scales, orange belly, ivory horns, black spikes, glowing yellow eyes',
             pose='standing on four legs, wings spread wide, looking powerful',
@@ -143,6 +238,18 @@ def main_prompt(p):
             'Character: %s.\nColors: %s.\n%s\n'
             'Pose: %s, full body, side view facing right (three-quarter view), centered. %s\n%s'
             % (p['desc'], p['colors'], STYLE, p['pose'], SIZE, RULES % ''))
+
+
+def evo_prompt(p):
+    return ('The attached image shows the first form of this creature line. Draw its %s: '
+            'keep it clearly recognizable as the same creature line and match the art style exactly (outline thickness, shading), '
+            'but make it look %s.\n'
+            'Create a game sprite of a cute chibi fantasy creature for a 2000s Taiwanese MMORPG pet game.\n'
+            'Character: %s.\nColors: %s.\n%s\n'
+            'Pose: %s, full body, side view facing right (three-quarter view), centered. %s\n%s'
+            % ('evolved form (second stage)' if p['stage'] == 1 else 'final evolved form (third stage)',
+               'more grown-up and stronger' if p['stage'] == 1 else 'majestic and powerful, but still cute chibi',
+               p['desc'], p['colors'], STYLE, p['pose'], SIZE, RULES % ''))
 
 
 def frame_prompt(p, pose, face, allow):
@@ -183,17 +290,22 @@ lines = ['# 繪圖 prompt 集(ChatGPT 直接複製貼上)', '',
          '- 動作圖明講「不要重新設計、不要加減特徵」,也不要求火焰變小、翅膀變大這種會改變大小的動作。',
          '- 會飛的寵物(小火妖、彩虹鴿、吸血蝙蝠)在遊戲裡是浮空的,睡著也畫成在空中打瞌睡。',
          '',
-         '> 路線圖的安排:這階段只試做噗噗和小火妖;其他寵物等階段 3(繁殖與進化)定案後再全面產圖,避免畫完又改。',
-         '> 下面先把全部的 prompt 準備好,想提早畫也可以。', '']
+         '- **進化型態**(中階、高階):主圖要先上傳初階的圖當參考,prompt 會要求「看得出是同一系、更大更強」。'
+         '動作圖的姿勢沿用初階。程式代號是初階加 2、3(例如 `poring2`),遊戲裡顯示大小是初階的 1.15 倍、1.3 倍。',
+         '- **混種**(銀月狼、暮光鳥):只能配對得到,可以把爸媽兩張圖一起上傳當參考。',
+         '',
+         '> 階段 3(繁殖與進化)定案了全部 39 個種族:11 種 × 3 階 + 2 種混種 × 3 階。階段 4 照這份全面產圖。',
+         '> 還沒有圖的種族,遊戲會用程式繪圖;進化型態沒有圖時,用初階的圖換顏色、放大。', '']
 
 for p in P + [BOSS]:
-    lines += ['---', '', '## %s' % p['zh'], '']
-    if p['note']:
-        lines += [p['note'], '']
-    name = p['zh'].split('(')[0]
-    lines.append(block('主圖(必要)', name + '.png', main_prompt(p)))
-    for title, pose, face, allow in p['frames']:
-        lines.append(block('%s(可選)' % title, '%s_%s.png' % (name, title), frame_prompt(p, pose, face, allow)))
+    for q in [p] + (forms_of(p) if p['code'] in EVO else []):
+        lines += ['---', '', '## %s' % q['zh'], '']
+        if q['note']:
+            lines += [q['note'], '']
+        name = q['zh'].split('(')[0]
+        lines.append(block('主圖(必要)', name + '.png', evo_prompt(q) if q.get('stage') else main_prompt(q)))
+        for title, pose, face, allow in q['frames']:
+            lines.append(block('%s(可選)' % title, '%s_%s.png' % (name, title), frame_prompt(q, pose, face, allow)))
 
 open(OUT, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines).rstrip() + '\n')
 print('ok', len(lines))

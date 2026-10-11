@@ -7,7 +7,7 @@ const UI = (() => {
   const el = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const STAT_NAMES = ['力量', '體質', '智力', '敏捷'];
-  let skyRAF = 0, twTimer = 0, shopOpen = false, sellMode = false, petSel = 0, renaming = false;
+  let skyRAF = 0, twTimer = 0, shopOpen = false, sellMode = false, petSel = 0, renaming = false, petTab = 'stat';
   let bpKey = '', knobSendT = 0, knob = null, hatchBuilt = false, lastBeat = 0;
 
   // 小型寵物頭像 (畫在 canvas 上)
@@ -138,6 +138,7 @@ const UI = (() => {
     if (n === 'pets') renderPets();
     if (n === 'hatch') renderHatch();
     if (n === 'bank') renderBank();
+    if (n === 'breed') renderBreed();
     sfx('click');
   }
   function closeWin(n) {
@@ -149,7 +150,7 @@ const UI = (() => {
     if (n === 'dlg') clearInterval(twTimer);
     el('tip').hidden = true;
   }
-  function closeAll() { for (const n of ['inv', 'pets', 'hatch', 'help', 'dlg', 'shop', 'bank']) closeWin(n); closeMenus(); }
+  function closeAll() { for (const n of ['inv', 'pets', 'hatch', 'help', 'dlg', 'shop', 'bank', 'breed']) closeWin(n); closeMenus(); }
   function toggleSound() { muted = !muted; el('btn-snd').textContent = '音效:' + (muted ? '關' : '開'); }
   // 美術:圖片 / 程式繪圖 (比較畫風用)
   function artLabel() {
@@ -217,6 +218,10 @@ const UI = (() => {
   // ============================================================
   //  戰鬥指令面板
   // ============================================================
+  // 戰鬥中寵物會的技能:伺服器送來的清單 (含專屬、遺傳),舊資料就用種族和等級算
+  function petSkillList(p) {
+    return p.sk || ((S.species[p.c] || {}).skills || []).filter(([, lv]) => p.lv >= lv).map(([s]) => s);
+  }
   function battleOpen() {
     el('bpanel').hidden = false;
     el('bp-auto').checked = S.auto;
@@ -245,12 +250,11 @@ const UI = (() => {
       drawPetFace(el('bp-petface'), p.c, 0, 0.9);
       el('bp-petname').textContent = `${p.n} Lv.${p.lv}`;
       pb.appendChild(btn('攻擊', '1', () => petCmd('atk'), { data: { cost: 0, who: 'p' } }));
-      const learned = ((S.species[p.c] || {}).skills || []).filter(([, lv]) => p.lv >= lv).map(([s]) => s);
-      learned.forEach((s, i) => {
+      petSkillList(p).forEach((s, i) => {   // 最多 5 個技能:快捷鍵 2~6
         const sk = S.pskills[s];
-        pb.appendChild(btn(sk.name, String(i + 2), () => petCmd('skill', s), { sub: 'MP ' + sk.mp, data: { cost: sk.mp, who: 'p', pskill: s } }));
+        if (sk) pb.appendChild(btn(sk.name, String(i + 2), () => petCmd('skill', s), { sub: 'MP ' + sk.mp, data: { cost: sk.mp, who: 'p', pskill: s } }));
       });
-      pb.appendChild(btn('防禦', '5', () => petCmd('def'), { data: { cost: 0, who: 'p' } }));
+      pb.appendChild(btn('防禦', 'G', () => petCmd('def'), { data: { cost: 0, who: 'p' } }));
       if (p.sy >= 0) pb.appendChild(btn('助攻', 'T', assistCmd, { sub: '默契 0%', data: { who: 'a' } }));
     } else {
       drawPetFace(el('bp-petface'), null);
@@ -271,7 +275,7 @@ const UI = (() => {
   function battleTick(t) {
     const { rb, o, p } = myUnits();
     if (!rb) return;
-    const key = [p && p.i, p && p.lv, p && p.ko, p && p.sy >= 0, o && o.i, S.me && S.me.lv, countItem('red_potion'), countItem('seal_card')].join();
+    const key = [p && p.i, p && p.lv, p && p.ko, p && p.sy >= 0, p && petSkillList(p).join('/'), o && o.i, S.me && S.me.lv, countItem('red_potion'), countItem('seal_card')].join();
     if (key !== bpKey) { bpKey = key; buildBattlePanel(p && !p.ko ? p : null, o); }
     const atb = (u, id, vals) => {
       el(id).style.width = (u && !u.ko ? unitBar(u, t) : 0) + '%';
@@ -341,11 +345,15 @@ const UI = (() => {
   //  寵物視窗
   // ============================================================
   function openPets(sell) { sellMode = !!sell; openWin('pets'); }
-  function petPrice(pt) { return 30 + pt.lv * 15 + pt.q * 25 + ((S.species[pt.sp] || {}).egg ? 100 : 0); }
+  function petPrice(pt) {
+    const sp = S.species[pt.sp] || {}, line = S.species[sp.line] || sp;
+    return 30 + pt.lv * 15 + pt.q * 25 + (line.egg ? 100 : 0) + (sp.stage ? [150, 400][sp.stage - 1] : 0);
+  }
   function pets() {
     status();
     bpKey = '';
     bank();
+    if (!el('win-breed').hidden) { breedSel = breedSel.filter(i => i < S.pets.length); renderBreed(); requestPrev(); }
     if (el('win-pets').hidden) return;
     if (renaming) renderPetList();   // 改名中不要重畫詳細資料,不然輸入框會被洗掉
     else renderPets();
@@ -372,14 +380,50 @@ const UI = (() => {
       list.appendChild(d);
     }
   }
+  const STAGE_NAMES = ['初階', '中階', '高階'];
+  // 技能:種族技能 (含還沒學會的)、專屬技能、遺傳技能
+  function skillChips(pt) {
+    const sp = S.species[pt.sp] || {}, ex = (S.exclusive || {})[sp.line], own = (sp.skills || []).map(([s]) => s);
+    const chip = (s, ok, sub, tag) => {
+      const sk = S.pskills[s] || { name: s, mp: 0 };
+      return `<span class="skill-chip${ok ? '' : ' locked'}${tag ? ' ' + tag[1] : ''}" data-pskill="${s}">${tag ? `<em>${tag[0]}</em>` : ''}${esc(sk.name)}<small>${sub}</small></span>`;
+    };
+    const html = (sp.skills || []).map(([s, lv]) => chip(s, pt.lv >= lv, pt.lv >= lv ? 'MP ' + (S.pskills[s] || {}).mp : 'Lv.' + lv, s === ex ? ['專屬', 'excl'] : null));
+    for (const s of pt.skills || []) if (!own.includes(s)) html.push(chip(s, true, 'MP ' + (S.pskills[s] || {}).mp, ['遺傳', 'inh']));
+    if (!sp.stage && ex) html.push(chip(ex, false, '中階', ['專屬', 'excl']));
+    return html.join('');
+  }
+  // 血統分頁:階段與進化、發情、遺傳技能、雙親
+  function lineageHTML(pt, inBattle) {
+    const sp = S.species[pt.sp] || {}, C = S.care, ex = (S.exclusive || {})[sp.line];
+    let evo;
+    if (pt.evo) {
+      const nx = S.species[pt.evo] || {}, okLv = pt.lv >= pt.evo_lv, okBond = pt.bond >= pt.evo_bond;
+      evo = `<div>下一階段:<b class="gold">${esc(nx.n || pt.evo)}</b>(${STAGE_NAMES[sp.stage + 1]})</div>
+        <div class="evo-req"><span class="${okLv ? 'good' : 'dim'}">${okLv ? '✓' : '✗'} Lv.${pt.lv} / ${pt.evo_lv}</span>
+          <span class="${okBond ? 'good' : 'dim'}">${okBond ? '✓' : '✗'} 親密度 ${pt.bond} / ${pt.evo_bond}</span></div>
+        <button id="pd-evo" class="${okLv && okBond ? 'glow' : ''}" ${okLv && okBond && !inBattle ? '' : 'disabled'}>進化成「${esc(nx.n || '')}」</button>
+        <div class="dim small">進化後能力提升、技能升階${sp.stage === 0 && ex ? `,學會專屬技能「${esc((S.pskills[ex] || {}).name || '')}」` : ''};等級不會歸零。</div>`;
+    } else evo = '<div class="gold">已經是最終型態了!</div>';
+    const par = pt.par && pt.par.length ? pt.par.map(x => `${esc(x.n)}<small>(${esc((S.species[x.sp] || {}).n || x.sp)},${x.q} 點)</small>`).join(' × ')
+      : '<span class="dim">野生或商店蛋出身</span>';
+    const inh = (pt.skills || []).find(s => !(sp.skills || []).some(([k]) => k === s));
+    return `<div class="pd-line">
+      <div class="line-row"><span>階段</span><div><b>${STAGE_NAMES[sp.stage || 0]}</b>${sp.hybrid ? ' <span class="mood-tag love">混種</span>' : ''}${evo}</div></div>
+      <div class="line-row"><span>發情</span><div>${pt.estrus ? '<b class="love">♥ 發情中</b>,可以找葛莉絲婆婆配對'
+        : `<span class="dim">還沒發情(快樂值 ${C.love_joy || 80}、親密度 ${C.love_bond || 60} 以上,而且不能肚子餓)</span>`}</div></div>
+      <div class="line-row"><span>遺傳</span><div>${inh ? `<span class="skill-chip inh" data-pskill="${inh}"><em>遺傳</em>${esc(S.pskills[inh].name)}</span>` : '<span class="dim">沒有遺傳技能</span>'}</div></div>
+      <div class="line-row"><span>雙親</span><div>${par}</div></div>
+      <div class="line-row"><span>代數</span><div>第 ${pt.gen || 1} 代</div></div>
+    </div>`;
+  }
   function renderPetDetail() {
     const box = el('pet-detail'), pt = S.pets[petSel];
     if (!pt) { box.innerHTML = ''; return; }
     const sp = S.species[pt.sp] || {}, inBattle = !!S.myBattle;
-    const skillsHTML = (sp.skills || []).map(([s, lv]) => {
-      const sk = S.pskills[s], ok = pt.lv >= lv;
-      return `<span class="skill-chip${ok ? '' : ' locked'}" data-pskill="${s}">${esc(sk.name)}<small>${ok ? 'MP ' + sk.mp : 'Lv.' + lv}</small></span>`;
-    }).join('');
+    if (sellMode) petTab = 'stat';
+    const evoReady = pt.evo && pt.lv >= pt.evo_lv && pt.bond >= pt.evo_bond;
+    const tab = (k, label) => `<button class="tab${petTab === k ? ' on' : ''}" data-tab="${k}">${label}${k === 'line' && evoReady ? ' <b class="gold">!</b>' : ''}</button>`;
     const row = (i, derivedName, derivedVal) => `<tr><th>${STAT_NAMES[i]}</th><td>${pt.st[i]}</td>
       <td><button class="plus" data-s="${i}" ${pt.pts > 0 && !inBattle ? '' : 'disabled'}>+</button></td>
       <th>${derivedName}</th><td>${derivedVal}</td></tr>`;
@@ -388,27 +432,33 @@ const UI = (() => {
         <canvas id="pd-face" width="96" height="96"></canvas>
         <div class="pd-info">
           <div class="pd-name">${renaming ? `<input id="pd-rename" maxlength="8" value="${esc(pt.n)}">` : `<b>${esc(pt.n)}</b> <button class="mini" id="pd-ren">改名</button>`}</div>
-          <div>${esc(sp.n || pt.sp)} ${elemTag(sp.el)} <span class="dim">${esc({ beast: '野獸屬', bug: '蟲獸屬', wing: '翼獸屬', humanoid: '類人屬', fairy: '妖精屬' }[sp.fam] || '')}</span></div>
+          <div>${esc(sp.n || pt.sp)} <small class="dim">${STAGE_NAMES[sp.stage || 0]}</small> ${elemTag(sp.el)} <span class="dim">${esc({ beast: '野獸屬', bug: '蟲獸屬', wing: '翼獸屬', humanoid: '類人屬', fairy: '妖精屬' }[sp.fam] || '')}</span></div>
           <div>天生素質 <b class="gold">${pt.q}</b> 點 <span class="star">${stars(pt.star)}</span></div>
           <div>Lv.${pt.lv} <div class="bar thin xp inline"><i style="width:${pt.exp / pt.nx * 100}%"></i><span>${pt.exp}/${pt.nx}</span></div></div>
           <div class="bar thin hp"><i style="width:${clamp(pt.hp / pt.mhp, 0, 1) * 100}%"></i><span>HP ${pt.hp}/${pt.mhp}</span></div>
           <div class="bar thin mp"><i style="width:${clamp(pt.mp / pt.mmp, 0, 1) * 100}%"></i><span>MP ${pt.mp}/${pt.mmp}</span></div>
         </div>
       </div>
-      ${careHTML(pt, inBattle)}
+      <div class="pd-tabs">${tab('stat', '能力')}${tab('care', '照顧')}${tab('line', '血統')}</div>
+      ${petTab === 'care' ? careHTML(pt, inBattle) : petTab === 'line' ? lineageHTML(pt, inBattle) : `
       <table class="pd-stats">
         ${row(0, '攻擊', pt.atk)}${row(1, '防禦', pt.def)}${row(2, '魔攻', pt.matk)}${row(3, '魔防', pt.mdef)}
         <tr><th>剩餘點數</th><td class="gold">${pt.pts}</td><td><button class="mini" id="pd-auto" ${pt.pts > 0 && !inBattle ? '' : 'disabled'}>自動</button></td><th>速度</th><td>${pt.spd}</td></tr>
       </table>
-      <div class="pd-skills">${skillsHTML}</div>
+      <div class="pd-skills">${skillChips(pt)}</div>`}
       <div class="pd-btns">${sellMode
         ? `<button id="pd-sell" ${S.pets.length <= 1 ? 'disabled' : ''}>賣給婆婆 (${petPrice(pt)} 金幣)</button>`
         : `<button id="pd-act" ${petSel === S.act || inBattle ? 'disabled' : ''}>設為出戰</button>
            <button id="pd-rel" ${S.pets.length <= 1 || inBattle ? 'disabled' : ''}>放生</button>`}</div>
-      <div class="hint">${inBattle ? '戰鬥中不能配點或更換出戰寵物。' : '點 + 分配能力點數(Shift+點 一次 5 點)。'}</div>`;
+      <div class="hint">${inBattle ? '戰鬥中不能配點、進化或更換出戰寵物。' : petTab === 'stat' ? '點 + 分配能力點數(Shift+點 一次 5 點)。' : ''}</div>`;
     box.querySelectorAll('.plus').forEach(b => b.onclick = e => send({ t: 'palloc', i: petSel, s: +b.dataset.s, n: e.shiftKey ? 5 : 1 }));
+    box.querySelectorAll('.tab').forEach(b => b.onclick = () => { petTab = b.dataset.tab; renaming = false; renderPetDetail(); });
     const q = id => box.querySelector('#' + id);
     const idx = petSel;
+    if (q('pd-evo')) q('pd-evo').onclick = () => {
+      const nx = S.species[pt.evo] || {};
+      if (confirm(`要讓「${pt.n}」進化成「${nx.n}」嗎?`)) send({ t: 'evolve', i: idx });
+    };
     if (q('pd-feed')) q('pd-feed').onclick = e => { e.stopPropagation(); feedMenu(e.currentTarget, idx); };
     for (const a of ['pet', 'play', 'trick']) if (q('pd-' + a)) q('pd-' + a).onclick = () => send({ t: 'pact', i: idx, a });
     if (q('pd-auto')) q('pd-auto').onclick = () => send({ t: 'pauto', i: petSel });
@@ -492,6 +542,98 @@ const UI = (() => {
   }
 
   // ============================================================
+  //  寵物配對 (孵化屋的葛莉絲婆婆)
+  // ============================================================
+  let breedSel = [], breedPrev = null, breedDone = null;   // breedDone:剛配對成功 (顯示成功訊息,直到再選寵物)
+  const breedPick = { sp: null, inh: null };
+  function openBreed() { breedSel = []; breedPrev = null; breedDone = null; openWin('breed'); }
+  function bred(m) { breedDone = m; breedSel = []; breedPrev = null; if (!el('win-breed').hidden) renderBreed(); }
+  function requestPrev() { if (breedSel.length === 2) send({ t: 'bprev', a: breedSel[0], b: breedSel[1] }); }
+  function renderBreed() {
+    const list = el('breed-pets'), B = S.breed || {};
+    list.innerHTML = '';
+    S.pets.forEach((pt, i) => {
+      const okLv = pt.lv >= (B.min_lv || 10), d = document.createElement('div');
+      d.className = 'bank-row breed-row' + (breedSel.includes(i) ? ' sel' : '') + (okLv && pt.estrus ? '' : ' no');
+      d.innerHTML = `<img src="${petIconURL(pt.sp)}"><div class="ps-info"><b>${esc(pt.n)}</b> Lv.${pt.lv} <span class="star">${stars(pt.star)}</span>
+        ${pt.estrus ? '<span class="mood-tag love">♥ 發情</span>' : ''}<br>
+        <small><span class="${okLv ? 'good' : 'bad'}">${okLv ? '✓' : '✗'} Lv.${B.min_lv || 10}</span> ·
+        <span class="${pt.estrus ? 'good' : 'bad'}">${pt.estrus ? '✓ 發情' : '✗ 還沒發情'}</span> · 素質 ${pt.q} 點</small></div>`;
+      d.onclick = () => {
+        const k = breedSel.indexOf(i);
+        breedDone = null;
+        if (k >= 0) breedSel.splice(k, 1);
+        else { breedSel.push(i); if (breedSel.length > 2) breedSel.shift(); }
+        breedPrev = null;
+        requestPrev();
+        renderBreed();
+      };
+      list.appendChild(d);
+    });
+    renderBreedPrev();
+  }
+  function breedPreview(m) {
+    if (breedSel.length !== 2 || m.a !== breedSel[0] || m.b !== breedSel[1]) return;
+    breedPrev = m;
+    const opts = m.opts || [];
+    if (!opts.some(o => o.sp === breedPick.sp)) breedPick.sp = opts.length ? opts[0].sp : null;
+    const o = opts.find(x => x.sp === breedPick.sp);
+    if (!o || !o.inh.includes(breedPick.inh)) breedPick.inh = null;
+    renderBreedPrev();
+  }
+  function renderBreedPrev() {
+    const box = el('breed-prev'), B = S.breed || {};
+    if (breedSel.length < 2 && breedDone) {   // 剛配對成功
+      const d = breedDone, sp = S.species[d.sp] || {};
+      box.innerHTML = `<div class="breed-ok"><b class="love">♥ 配對成功!</b><br>
+        <img src="${petIconURL(d.sp)}"><br>${esc(d.a)} × ${esc(d.b)} 的孩子:<b>${esc(sp.n || d.sp)}</b>${sp.hybrid ? ' <span class="mood-tag love">混種!</span>' : ''}<br>
+        遺傳技能:${d.inh ? `<b class="gold">${esc((S.pskills[d.inh] || {}).name || '')}</b>` : '<span class="dim">沒有</span>'} ·
+        天生素質 <b class="gold">${d.q0} ~ 12</b> 點<br>
+        <span class="dim">蛋已經交給葛莉絲婆婆保管了。<br>爸爸媽媽的快樂值降了 ${B.joy_cost || 40},要再照顧到 ♥ 才能再配對。</span></div>
+        <button class="breed-go big glow" id="breed-hatch">去孵蛋</button>`;
+      el('breed-hatch').onclick = () => {
+        const n = S.npcs.find(x => x.c === 'hatcher');
+        closeWin('breed');
+        if (n) send({ t: 'dlg', npc: n.i, act: 'hatch' });
+      };
+      return;
+    }
+    if (breedSel.length < 2) {
+      box.innerHTML = `<p class="dim">從左邊選兩隻寵物。<br>兩隻都要 Lv.${B.min_lv || 10} 以上,而且在發情(♥:快樂值 ${S.care.love_joy || 80}、親密度 ${S.care.love_bond || 60} 以上)。</p>`;
+      return;
+    }
+    const m = breedPrev, pa = S.pets[breedSel[0]], pb = S.pets[breedSel[1]];
+    if (!m || !pa || !pb) { box.innerHTML = '<p class="dim">婆婆正在看……</p>'; return; }
+    const o = (m.opts || []).find(x => x.sp === breedPick.sp) || { inh: [] };
+    box.innerHTML = `
+      <div><b>${esc(pa.n)}</b> × <b>${esc(pb.n)}</b></div>
+      <h4>小寵的種族</h4>
+      ${(m.opts || []).map(x => {
+        const sp = S.species[x.sp] || {};
+        return `<label class="breed-opt"><input type="radio" name="bsp" value="${x.sp}" ${x.sp === breedPick.sp ? 'checked' : ''}>
+          <img src="${petIconURL(x.sp)}">${esc(sp.n)} ${elemTag(sp.el)}${sp.hybrid ? ' <span class="mood-tag love">混種!</span>' : ''}</label>`;
+      }).join('')}
+      <h4>遺傳技能(挑一個)</h4>
+      <label class="breed-opt"><input type="radio" name="binh" value="" ${breedPick.inh ? '' : 'checked'}> <span class="dim">不遺傳</span></label>
+      ${o.inh.map(k => `<label class="breed-opt" data-pskill="${k}"><input type="radio" name="binh" value="${k}" ${k === breedPick.inh ? 'checked' : ''}>
+        ${esc(S.pskills[k].name)} <small class="dim">${esc(S.pskills[k].desc || '')}</small></label>`).join('') || '<div class="dim">沒有可以遺傳的技能</div>'}
+      <h4>結果</h4>
+      <div>天生素質 <b class="gold">${m.q0} ~ 12</b> 點 <small class="dim">(孵得越好越高)</small></div>
+      <div>費用 <b class="gold">${m.cost}</b> 金幣 <small class="dim">(你有 ${S.gold})</small> · 雙親快樂值 −${B.joy_cost || 40}</div>
+      ${m.why && m.why.length ? `<div class="breed-why">${m.why.map(esc).join('<br>')}</div>` : ''}
+      <button class="breed-go big ${m.ok ? 'glow' : ''}" ${m.ok ? '' : 'disabled'}>配對</button>`;
+    box.querySelectorAll('input[name=bsp]').forEach(r => r.onchange = () => { breedPick.sp = r.value; breedPick.inh = null; renderBreedPrev(); });
+    box.querySelectorAll('input[name=binh]').forEach(r => r.onchange = () => { breedPick.inh = r.value || null; });
+    box.querySelector('.breed-go').onclick = () => {
+      const sp = S.species[breedPick.sp] || {}, sk = breedPick.inh ? S.pskills[breedPick.inh].name : '不遺傳';
+      if (confirm(`確定要讓「${pa.n}」和「${pb.n}」配對嗎?\n小寵:${sp.n}  遺傳技能:${sk}\n費用 ${m.cost} 金幣`)) {
+        send({ t: 'breed', a: breedSel[0], b: breedSel[1], sp: breedPick.sp, inh: breedPick.inh });
+      }
+    };
+  }
+  function beggs() { if (!el('win-hatch').hidden && !S.hatch) renderHatch(); }
+
+  // ============================================================
   //  寵物旅館
   // ============================================================
   function openBank() { openWin('bank'); }
@@ -528,11 +670,17 @@ const UI = (() => {
     hatchBuilt = false;
     if (!S.hatch) {
       const eggs = S.inv.map((s, i) => ({ s, i })).filter(({ s }) => S.items[s.id] && S.items[s.id].type === 'egg');
+      const bred = S.beggs || [];
+      const eggIcon = sp => iconURLof('begg_' + sp, { icon: 'egg', col: ELEMENT_COLORS[(S.species[sp] || {}).el] || '#ccc' });
       body.innerHTML = `<p class="hatch-intro">選一顆蛋放進孵蛋器。孵化需要 ${S.hatchTime} 秒,要一直照顧喔!</p>` +
+        bred.map((e, i) => `<div class="shop-row"><div class="slot" style="background-image:url(${eggIcon(e.sp)})"></div>
+          <div class="nm">${esc(e.n)}的配對蛋<small>素質 ${e.q0}~12 點 · ${e.inh ? '遺傳「' + esc((S.pskills[e.inh] || {}).name || '') + '」' : '沒有遺傳技能'}
+          · ${(e.par || []).map(x => esc(x.n)).join(' × ')}</small></div><button data-egg="${i}">放入</button></div>`).join('') +
         (eggs.length ? eggs.map(({ s, i }) => `<div class="shop-row"><div class="slot" data-item="${s.id}" style="background-image:url(${iconURLof(s.id, S.items[s.id])})"></div>
           <div class="nm">${esc(S.items[s.id].name)} ×${s.n}<small>${esc(S.items[s.id].desc)}</small></div><button data-slot="${i}">放入</button></div>`).join('')
-          : '<p class="dim">你身上沒有蛋。可以向葛莉絲婆婆購買寵物蛋。</p>');
+          : bred.length ? '' : '<p class="dim">你身上沒有蛋。可以向葛莉絲婆婆購買寵物蛋,或請婆婆幫寵物配對。</p>');
       body.querySelectorAll('button[data-slot]').forEach(b => b.onclick = () => { knob = null; send({ t: 'hstart', slot: +b.dataset.slot }); });
+      body.querySelectorAll('button[data-egg]').forEach(b => b.onclick = () => { knob = null; send({ t: 'hstart', egg: +b.dataset.egg }); });
       return;
     }
     body.innerHTML = `
@@ -601,7 +749,7 @@ const UI = (() => {
     g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(-18, -62, 4, 10);
     g.restore();
     g.font = `bold 13px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'top';
-    g.fillStyle = '#ffe8a8'; g.fillText((S.items['egg_' + h.sp] || {}).name || '寵物蛋', 8, 8);
+    g.fillStyle = '#ffe8a8'; g.fillText((S.items['egg_' + h.sp] || {}).name || ((S.species[h.sp] || {}).n || '') + '的蛋', 8, 8);
     // 心跳指示
     g.fillStyle = '#ffffff'; g.fillText('心跳', 222, 8);
     for (let i = 0; i < 5; i++) {
@@ -620,7 +768,9 @@ const UI = (() => {
       `<img class="ov-pet" src="${c.toDataURL()}">
        <div class="ov-star">${stars(pet.star)}</div>
        <div>天生素質 <b class="gold">${pet.q}</b> 點${pet.q >= 12 ? '  <b class="gold">極品!</b>' : ''}</div>
-       <div class="dim">力量 ${pet.st[0]} · 體質 ${pet.st[1]} · 智力 ${pet.st[2]} · 敏捷 ${pet.st[3]}</div>`);
+       <div class="dim">力量 ${pet.st[0]} · 體質 ${pet.st[1]} · 智力 ${pet.st[2]} · 敏捷 ${pet.st[3]}</div>
+       ${pet.inh ? `<div>遺傳技能 <b class="gold">${esc((S.pskills[pet.inh] || {}).name || '')}</b></div>` : ''}
+       ${pet.par && pet.par.length ? `<div class="dim">雙親:${pet.par.map(x => esc(x.n)).join(' × ')} · 第 ${pet.gen} 代</div>` : ''}`);
   }
 
   // ============================================================
@@ -731,7 +881,7 @@ const UI = (() => {
   function pskillTip(s) {
     const sk = S.pskills[s];
     if (!sk) return '';
-    const tgt = { enemy: '單一敵人', enemies: '全體敵人', ally: '單一隊友' }[sk.target];
+    const tgt = { enemy: '單一敵人', enemies: '全體敵人', ally: '單一隊友', allies: '我方全體寵物' }[sk.target];
     const kind = { phys: '物理', mag: '魔法', status: '狀態', heal: '治療' }[sk.type];
     let d = sk.desc || (sk.mult ? `${kind} ${Math.round(sk.mult * 100)}%${sk.hits ? ' ×' + sk.hits : ''}` : '');
     return `<b>${esc(sk.name)}</b> ${sk.el ? elemTag(sk.el) : ''}<br><span class="t">${kind} · ${tgt} · MP ${sk.mp}</span><br>${esc(d)}`;
@@ -764,6 +914,7 @@ const UI = (() => {
     initLogin, loginError, enterGame, overlay, status, inv, pets, chat, addChat, dialog, shop,
     openHatch, hatchUpdate, hatched, openPets, battleOpen, battleClose, battleAuto, tick,
     closeMenus, swapMenu, toggleWin, toggleSound, closeAll, petMenu, bank, openBank, artChanged,
+    openBreed, breedPreview, bred, beggs, petSkillList,
   };
 })();
 

@@ -318,7 +318,12 @@ function drawMoodBubble(g, kind, x, y, t) {
 //  寵物 / 怪物
 // ============================================================
 // 每種生物頭頂大約的高度 (像素),用來放名字、血條
-const CREATURE_H = { poring: 26, slime: 28, imp: 40, goblin: 44, wolf: 36, fox: 38, skeleton: 50, dove: 44, bat: 44, griffin: 58, drake: 52, dragon: 110 };
+const CREATURE_H = { poring: 26, slime: 28, imp: 40, goblin: 44, wolf: 36, fox: 38, skeleton: 50, dove: 44, bat: 44, griffin: 58, drake: 52, dragon: 110,
+  silverwolf: 36, duskbird: 44 };
+// 進化型態的樣子 (伺服器送來的 species[sp].look):{ from: 初階, filter: 濾鏡, scale: 放大, shine: 高階的金色光點 }
+// 沒有自己的圖片時,用初階的樣子 (圖片或程式繪圖) 套濾鏡、放大
+const LOOKS = {};
+function setLooks(species) { for (const [k, v] of Object.entries(species || {})) if (v && (v.look || v.from)) LOOKS[k] = v.look || v; }
 
 // ============================================================
 //  圖片 (public/assets/):有圖用圖,沒圖退回程式繪圖
@@ -383,8 +388,9 @@ function drawArt(g, key, x, y, o, size, hover) {
   g.scale(face < 0 ? -1 : 1, 1);
   if (lunge) { g.translate(0, -ds * 0.3); g.rotate(lunge * 0.14); g.translate(0, ds * 0.3); }
   g.scale(1 - breathe * 0.6, 1 + breathe);
-  if (o.hurt) g.filter = 'brightness(2.4)';
-  else if (o.ko) g.filter = 'grayscale(1)';
+  const f0 = g.filter && g.filter !== 'none' ? g.filter + ' ' : '';   // 進化型態的變色濾鏡要保留
+  if (o.hurt) g.filter = f0 + 'brightness(2.4)';
+  else if (o.ko) g.filter = f0 + 'grayscale(1)';
   g.imageSmoothingEnabled = !meta.pixel;
   if (!meta.pixel) g.imageSmoothingQuality = 'high';
   g.drawImage(img, -ds / 2, -ds, ds, ds);
@@ -398,13 +404,18 @@ function creatureH(sp) {
     const a = ART.sizes[sp] || {}, ds = artDrawSize(key, img, a.size || 64);
     return Math.round((1 - ART.meta[key].top) * ds + (a.hover || 0));
   }
+  const lk = LOOKS[sp];
+  if (lk) return Math.round(creatureH(lk.from) * lk.scale);
   return CREATURE_H[sp] || 40;
 }
 // 身體寬度 (跟隨距離用):有圖就依圖片內容計算;pose = 'sleep' 等動作圖 (沒有那張圖就用主圖)
-const CREATURE_W = { poring: 22, slime: 26, imp: 24, goblin: 22, wolf: 36, fox: 36, skeleton: 22, dove: 28, bat: 30, griffin: 48, drake: 44, dragon: 140 };
+const CREATURE_W = { poring: 22, slime: 26, imp: 24, goblin: 22, wolf: 36, fox: 36, skeleton: 22, dove: 28, bat: 30, griffin: 48, drake: 44, dragon: 140,
+  silverwolf: 36, duskbird: 28 };
 function creatureW(sp, pose) {
   const base = 'pets/' + sp, key = pose && ART.imgs[base + '_' + pose] ? base + '_' + pose : base, img = ART.on && ART.imgs[key];
   if (img) { const m = ART.meta[key]; return Math.round((m.r - m.l) * artDrawSize(key, img, (ART.sizes[sp] || {}).size || 64)); }
+  const lk = LOOKS[sp];
+  if (lk) return Math.round(creatureW(lk.from, pose) * lk.scale);
   return CREATURE_W[sp] || 26;
 }
 // 地上的影子 (跟隨寵物做動作時用,大小和圖片版的影子一樣)
@@ -421,8 +432,19 @@ function drawNpcArt(g, cls, x, y, face, t) {
 function drawCreature(g, sp, x, y, o) {
   const t = o.t || 0, sw = o.atk || 0, face = o.face || 1;
   g.save();
+  const a = ART.sizes[sp], lk = LOOKS[sp];
+  if (lk && !(ART.on && ART.imgs['pets/' + sp])) {   // 進化型態沒有自己的圖:用初階的樣子變色、放大 (倒下變淡由初階那層處理)
+    g.translate(Math.round(x), Math.round(y));
+    g.scale(lk.scale, lk.scale);
+    const f0 = g.filter && g.filter !== 'none' ? g.filter + ' ' : '';
+    g.filter = f0 + lk.filter;
+    drawCreature(g, lk.from, 0, 0, o);
+    g.filter = f0 || 'none';
+    if (lk.shine && !o.ko) drawShine(g, creatureW(lk.from), creatureH(lk.from), t, o.id || 0);
+    g.restore();
+    return;
+  }
   if (o.ko) { g.globalAlpha *= 0.45; }
-  const a = ART.sizes[sp];
   if (a && drawArt(g, 'pets/' + sp, x, y, o, a.size, a.hover || 0)) { g.restore(); return; }
   switch (sp) {
     case 'poring': drawBlob(g, x, y, '#f49ac0', t, 1, o.id || 0, sw); break;
@@ -437,9 +459,24 @@ function drawCreature(g, sp, x, y, o) {
     case 'griffin': drawGriffin(g, x, y, face, t, o.walk, sw); break;
     case 'drake': drawDragon(g, x, y, face, t, sw, 1.25, DRAKE_PAL); break;
     case 'dragon': drawDragon(g, x, y, face, t, sw, 3, DRAGON_PAL); break;
+    case 'silverwolf': drawWolf(g, x, y, face, t, o.walk, sw, SILVER_PAL); break;
+    case 'duskbird': drawBird(g, x, y, face, t, sw, DUSK_PAL, 2); break;
     default: drawBlob(g, x, y, '#aaa', t, 1, 0, sw);
   }
   g.restore();
+}
+
+// 高階寵物身邊環繞的金色光點
+function drawShine(g, w, h, t, id) {
+  for (let i = 0; i < 4; i++) {
+    const a = t / 700 + id + i * Math.PI / 2, x = Math.cos(a) * w * 0.62, y = -h * 0.5 + Math.sin(a) * h * 0.38;
+    const k = 0.5 + 0.5 * Math.sin(t / 160 + i * 1.7), r = 1.5 + k * 2;
+    g.globalAlpha = 0.45 + 0.55 * k;
+    g.fillStyle = '#fff2a0';
+    g.beginPath(); g.moveTo(x, y - r * 2); g.lineTo(x + r * 0.5, y - r * 0.5); g.lineTo(x + r * 2, y); g.lineTo(x + r * 0.5, y + r * 0.5);
+    g.lineTo(x, y + r * 2); g.lineTo(x - r * 0.5, y + r * 0.5); g.lineTo(x - r * 2, y); g.lineTo(x - r * 0.5, y - r * 0.5); g.fill();
+  }
+  g.globalAlpha = 1;
 }
 
 function drawBlob(g, x, y, col, t, size, id, sw) {
@@ -481,6 +518,7 @@ function drawImp(g, x, y, face, t, sw) {
 
 const WOLF_PAL = { c: '#80858f', d: '#5e626b', l: '#a8adb6', belly: '#c8ccd2', eye: '#ff3030' };
 const FOX_PAL = { c: '#d6e4f6', d: '#9fb4d0', l: '#f4f8ff', belly: '#ffffff', eye: '#3a80e0', fox: true };
+const SILVER_PAL = { c: '#a9bcd8', d: '#6f84a8', l: '#dbe8fa', belly: '#eef4ff', eye: '#40b0ff' };   // 銀月狼 (混種)
 function drawWolf(g, x, y, face, t, walk, sw, P) {
   g.save(); g.translate(Math.round(x), Math.round(y));
   shadow(g, 18, 5);
@@ -503,6 +541,7 @@ function drawWolf(g, x, y, face, t, walk, sw, P) {
 }
 
 const DOVE_PAL = { body: '#f4f4f8', wing: '#d8d8e8', head: '#ffffff', tail: ['#f04040', '#f0c030', '#40c060', '#4080f0', '#a050e0'] };
+const DUSK_PAL = { body: '#6a5a8c', wing: '#43345f', head: '#7c6ca0', tail: ['#ffb040', '#f07050', '#c050a0', '#7040b0', '#302868'] };   // 暮光鳥 (混種)
 function drawBird(g, x, y, face, t, sw, P, sc) {
   const hov = 14 + Math.sin(t / 250) * 3;
   g.save(); g.translate(Math.round(x), Math.round(y));

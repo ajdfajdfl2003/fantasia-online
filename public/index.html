@@ -132,6 +132,17 @@
     </div>
   </div>
 
+  <div id="win-breed" class="panel win" hidden style="left:50%;top:8%;margin-left:-310px;width:620px">
+    <div class="title"><span>寵物配對(葛莉絲婆婆)</span><b class="x">×</b></div>
+    <div class="body">
+      <div class="breed-body">
+        <div class="breed-col"><div class="bank-h">選兩隻寵物</div><div class="bank-list" id="breed-pets"></div></div>
+        <div class="breed-col"><div class="bank-h">預覽</div><div class="breed-prev" id="breed-prev"></div></div>
+      </div>
+      <div class="hint">配好的蛋由婆婆保管(最多 3 顆),跟婆婆說「我要孵蛋」就能孵。孵得越好,天生素質越高。</div>
+    </div>
+  </div>
+
   <div id="win-dlg" class="panel win" hidden style="left:50%;top:22%;margin-left:-190px;width:380px">
     <div class="title"><span id="dlg-name"></span><b class="x">×</b></div>
     <div class="body">
@@ -148,7 +159,7 @@
     </div>
   </div>
 
-  <div id="win-help" class="panel win" hidden style="left:50%;top:10%;margin-left:-220px;width:440px">
+  <div id="win-help" class="panel win" hidden style="left:50%;top:40px;margin-left:-220px;width:440px">
     <div class="title"><span>操作說明</span><b class="x">×</b></div>
     <div class="body help">
       <table>
@@ -156,11 +167,12 @@
         <tr><th>滑鼠左鍵</th><td>移動 / 和 NPC 對話 / 點戰鬥圈加入別人的戰鬥</td></tr>
         <tr><th>W A S D、方向鍵</th><td>移動。在野外走路會隨機遇到野生寵物</td></tr>
         <tr><th>點自己的寵物</th><td>摸摸、餵食、玩耍、表演</td></tr>
+        <tr><th>寵物視窗 (P)</th><td>分頁:能力(配點、技能)/ 照顧 / 血統(進化、發情、遺傳、雙親)</td></tr>
         <tr><th>P / I / H / M</th><td>寵物 / 背包 / 說明 / 音效</td></tr>
         <tr><th>Enter</th><td>聊天(<code>/w 名稱 訊息</code> 密語、<code>/who</code> 線上名單)</td></tr>
         <tr><th colspan="2" class="sec">戰鬥(時間棒集滿才能行動,時間不會暫停!)</th></tr>
         <tr><th>點敵人 / Tab</th><td>選擇目標;點我方寵物 = 選擇補血對象</td></tr>
-        <tr><th>1 ~ 5</th><td>寵物:1 攻擊、2~4 技能、5 防禦</td></tr>
+        <tr><th>1 ~ 6、G</th><td>寵物:1 攻擊、2~6 技能(種族技能、專屬、遺傳)、G 防禦</td></tr>
         <tr><th>Q W E</th><td>主人的職業技能</td></tr>
         <tr><th>R / C / X / F</th><td>紅色藥水 / 封印卡捕捉 / 換寵 / 逃跑</td></tr>
         <tr><th>T</th><td>助攻(親密度 40 以上、默契滿了才能用,不用等主人的時間棒)</td></tr>
@@ -173,6 +185,8 @@
         食物向道具商人莉莉購買,打倒野生寵物也會掉。餓昏的寵物不肯戰鬥;心情差會不聽指令,太久沒人理還會離家出走。
         親密度越高,主人技能對牠越有效,還能「助攻」和「護主」。下線時寵物的狀態會暫停。</p>
       <p><b class="gold">寵物旅館</b>:帶不下的寵物可以免費寄放在村子東邊的寵物旅館(蘿絲),最多 20 隻。</p>
+      <p><b class="gold">配對</b>:兩隻 Lv.10 以上、心情好到冒 ♥(發情)的寵物,可以找孵化屋的葛莉絲婆婆配對。小寵的種族從爸媽二選一(聽說有些組合會生出特別的孩子),還能挑一個爸媽的技能遺傳下去。配好的蛋由婆婆保管,孵蛋時選「配對蛋」;天生素質至少有爸媽的平均,孵得好更高。</p>
+      <p><b class="gold">進化</b>:Lv.12 且親密度 40 → 中階,Lv.24 且親密度 70 → 高階。在寵物視窗「血統」分頁按「進化」。進化後能力提升、技能升階,中階會學會專屬技能(不能遺傳)。等級不會歸零。</p>
     </div>
   </div>
 
