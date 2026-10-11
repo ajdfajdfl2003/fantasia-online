@@ -134,7 +134,9 @@ def test_encounter(g):
     if not b:
         return
     enemies = b.alive(1)
-    check('遇到 1~2 隻草原寵物', 1 <= len(enemies) <= 2 and all(e.sp in ('poring', 'slime', 'fox') for e in enemies),
+    z = g.zone_at(b.cx, b.cy)   # 走路可能走出草原,以實際遇敵的區域為準
+    allowed = {m[0] for m in z['mobs']} | {z['rare'][0]}
+    check('遇到的寵物符合該區域 (%s)' % z['name'], 1 <= len(enemies) <= z['max'] and all(e.sp in allowed for e in enemies),
           [e.sp for e in enemies])
     check('戰鬥中移動指令無效', (g.handle(p, {'t': 'move', 'x': p.x + 5, 'y': p.y}) or True) and p.path == [])
     pu = b.units[b.pu[p.id]]
@@ -318,6 +320,7 @@ def test_pet_skills_ai(g):
     # 連動傷害
     ou = b.units[b.ou[p.id]]
     oh = ou.hp
+    pu.pet['bond'] = 0          # 階段 2 起連動比例會隨親密度降低,這裡驗證親密度 0 的基準值
     g.damage(b, pu, 100, clock[0])
     check('寵物受傷,主人連動扣血 15%', oh - ou.hp == 15, oh - ou.hp)
     # 睡眠被打會醒

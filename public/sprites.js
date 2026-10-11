@@ -46,7 +46,8 @@ function tint(hex, k) {
   return v;
 }
 const shade = c => tint(c, -0.28), lighten = c => tint(c, 0.3);
-function shadow(g, rx, ry, a = 0.28) { g.fillStyle = `rgba(0,0,0,${a})`; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fill(); }
+let NO_SHADOW = false;   // 跟隨寵物做動作時,影子由外面畫在地上,角色本身不畫影子
+function shadow(g, rx, ry, a = 0.28) { if (NO_SHADOW) return; g.fillStyle = `rgba(0,0,0,${a})`; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fill(); }
 function poly(g, pts, col) {
   g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]);
   for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
@@ -235,7 +236,83 @@ const NPC_LOOK = {
   healer: { skin: SKIN, robe: true, body: '#eeeeee', torso: R => { R(-1, -13, 2, 7, '#3a5ab0'); R(-3, -11, 6, 2, '#3a5ab0'); }, head: R => { R(-5, -22, 10, 3, '#3a5ab0'); R(-5, -20, 3, 8, '#3a5ab0'); R(-5, -22, 10, 1, '#fff'); } },
   wizard: { skin: SKIN, hair: '#999', robe: true, body: '#2c2c74', head: HAT_MAGE('#2c2c74'), weapon: W_STAFF('#40f0ff'), idleAng: 0.1 },
   hatcher: { skin: '#e8b890', hair: '#c8c8c8', robe: true, body: '#8a5a9a', torso: R => { R(-4, -13, 8, 3, '#d8b860'); }, head: R => { R(-3, -25, 6, 3, '#c8c8c8'); R(2, -17, 1, 1, '#a07060'); }, weapon: R => { R(-0.5, -6, 1, 11, '#7a5030'); R(-0.5, -7, 3, 1, '#7a5030'); }, idleAng: 0.3 },
+  keeper: { skin: SKIN, hair: '#c0602a', robe: true, body: '#e07890', torso: R => { R(-3, -12, 6, 6, '#fff4f0'); R(-3, -12, 6, 1, '#f0c8d0'); }, head: R => { R(-5, -24, 4, 3, '#ff5a8a'); R(-2, -23, 1, 1, '#ffd0e0'); }, weapon: R => { R(-2, -2, 5, 3, '#c89a50'); R(-2, -2, 5, 1, '#e8c070'); R(-1, -3, 3, 1, '#a05a30'); }, idleAng: 0 },
 };
+
+// ============================================================
+//  心情泡泡與互動用的小圖示
+// ============================================================
+function heartPath(g, x, y, s) {
+  g.beginPath(); g.moveTo(x, y + s * 0.35);
+  g.bezierCurveTo(x, y - s * 0.15, x - s * 0.6, y - s * 0.2, x - s * 0.55, y + s * 0.15);
+  g.bezierCurveTo(x - s * 0.5, y + s * 0.45, x - s * 0.1, y + s * 0.6, x, y + s * 0.8);
+  g.bezierCurveTo(x + s * 0.1, y + s * 0.6, x + s * 0.5, y + s * 0.45, x + s * 0.55, y + s * 0.15);
+  g.bezierCurveTo(x + s * 0.6, y - s * 0.2, x, y - s * 0.15, x, y + s * 0.35);
+  g.closePath();
+}
+// 在 (x, y) 畫一個心情圖示,約 14×14
+function drawMoodIcon(g, kind, x, y, t) {
+  g.save();
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  if (kind === 'love' || kind === 'heart') {
+    heartPath(g, x, y - 6, 13); g.fillStyle = '#ff4a7a'; g.fill(); g.strokeStyle = '#a01040'; g.lineWidth = 1; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(x - 4, y - 4, 2, 2);
+  } else if (kind === 'angry' || kind === 'anger') {   // 💢 青筋
+    g.strokeStyle = '#e02020'; g.lineWidth = 2.2;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      g.beginPath(); g.moveTo(x + sx * 6, y + sy * 2); g.quadraticCurveTo(x + sx * 2, y + sy * 2, x + sx * 2, y + sy * 6); g.stroke();
+    }
+  } else if (kind === 'hungry' || kind === 'starve' || kind === 'meat') {   // 🍖
+    g.save(); g.translate(x, y); g.rotate(-0.6);
+    g.fillStyle = '#f4f0e0'; g.fillRect(-1.5, 1, 3, 7); g.beginPath(); g.arc(-1.5, 8, 2, 0, 7); g.arc(1.5, 8, 2, 0, 7); g.fill();
+    g.fillStyle = '#b0502a'; g.beginPath(); g.ellipse(0, -2, 5, 6, 0, 0, 7); g.fill();
+    g.fillStyle = '#d8784a'; g.beginPath(); g.ellipse(-1.5, -4, 2, 2.5, 0, 0, 7); g.fill();
+    g.restore();
+    if (kind === 'starve') {
+      g.strokeStyle = '#e02020'; g.lineWidth = 2.4;
+      g.beginPath(); g.moveTo(x - 6, y - 6); g.lineTo(x + 6, y + 6); g.moveTo(x + 6, y - 6); g.lineTo(x - 6, y + 6); g.stroke();
+    }
+  } else if (kind === 'scared') {   // 💦 冷汗
+    for (const [dx, dy, s] of [[-3, -1, 1], [4, 2, 0.75]]) {
+      g.fillStyle = '#6ab8ff'; g.beginPath(); g.moveTo(x + dx, y + dy - 6 * s);
+      g.quadraticCurveTo(x + dx + 4 * s, y + dy, x + dx, y + dy + 3 * s); g.quadraticCurveTo(x + dx - 4 * s, y + dy, x + dx, y + dy - 6 * s); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(x + dx - 1, y + dy - 1, 1, 2);
+    }
+  } else if (kind === 'sleepy') {
+    g.font = `bold 11px ${NUMFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#4a5ab0'; g.fillText('z', x - 3, y + 2); g.font = `bold 8px ${NUMFONT}`; g.fillText('z', x + 4, y - 3);
+  } else if (kind === 'happy' || kind === 'note') {   // ♪
+    g.fillStyle = '#ffb020'; g.strokeStyle = '#ffb020'; g.lineWidth = 1.6;
+    g.beginPath(); g.ellipse(x - 2, y + 4, 3, 2.2, -0.4, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(x + 0.6, y + 3.6); g.lineTo(x + 0.6, y - 6); g.quadraticCurveTo(x + 4, y - 4, x + 5, y - 1); g.stroke();
+  } else if (kind === 'flame') {
+    const f = Math.sin(t / 60) * 1.2;
+    poly(g, [x - 5, y + 5, x - 3, y - 3, x, y - 8 + f, x + 3, y - 3, x + 5, y + 5], '#ff7a20');
+    poly(g, [x - 2.5, y + 5, x, y - 3 + f, x + 2.5, y + 5], '#ffe060');
+  }
+  g.restore();
+}
+// 對話泡泡底 + 圖示 (地圖與戰鬥中寵物頭上用)
+function drawMoodBubble(g, kind, x, y, t) {
+  if (kind === 'sleepy') {   // 打瞌睡不用泡泡,Z 會一直往上飄
+    const k = (t / 1400) % 1;
+    g.save(); g.globalAlpha = 1 - k;
+    g.font = `bold 12px ${NUMFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.6)';
+    g.strokeText('Z', x + 4 + k * 8, y - k * 14); g.fillStyle = '#d8e4ff'; g.fillText('Z', x + 4 + k * 8, y - k * 14);
+    g.font = `bold 9px ${NUMFONT}`; g.strokeText('z', x + 12 + k * 6, y - 8 - k * 10); g.fillText('z', x + 12 + k * 6, y - 8 - k * 10);
+    g.restore();
+    return;
+  }
+  const w = 22, h = 19, bx = Math.round(x - w / 2), by = Math.round(y - h);
+  g.save();
+  g.fillStyle = 'rgba(255,255,255,.95)'; g.strokeStyle = '#333'; g.lineWidth = 1;
+  g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, h, 6) : g.rect(bx, by, w, h); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(x - 3, by + h - 0.5); g.lineTo(x - 1, by + h + 5); g.lineTo(x + 3, by + h - 0.5); g.fill();
+  g.beginPath(); g.moveTo(x - 3, by + h); g.lineTo(x - 1, by + h + 5); g.lineTo(x + 3, by + h); g.stroke();
+  drawMoodIcon(g, kind, x, by + h / 2 + 0.5, t);
+  g.restore();
+}
 
 // ============================================================
 //  寵物 / 怪物
@@ -243,10 +320,110 @@ const NPC_LOOK = {
 // 每種生物頭頂大約的高度 (像素),用來放名字、血條
 const CREATURE_H = { poring: 26, slime: 28, imp: 40, goblin: 44, wolf: 36, fox: 38, skeleton: 50, dove: 44, bat: 44, griffin: 58, drake: 52, dragon: 110 };
 
+// ============================================================
+//  圖片 (public/assets/):有圖用圖,沒圖退回程式繪圖
+//  規格見 docs/art/美術規格.md:256×256 透明 PNG、腳底貼齊底邊正中央、朝右
+// ============================================================
+const ART = { on: true, imgs: {}, meta: {}, sizes: {}, count: 0, onload: null };
+try { ART.on = localStorage.getItem('fantasia.art') !== 'off'; } catch (e) { /* 沒有 localStorage 也沒關係 */ }
+
+// 量出圖片實際內容的範圍 (用來算頭頂高度、影子寬度)
+function measureArt(img) {
+  const w = img.width, h = img.height, c = mkCanvas(w, h), g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  let top = h, l = w, r = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (d[(y * w + x) * 4 + 3] > 24) { if (y < top) top = y; if (x < l) l = x; if (x > r) r = x; }
+  }
+  if (r < l) { top = 0; l = 0; r = w - 1; }
+  return { top: top / h, l: l / w, r: (r + 1) / w, pixel: w < 256 };
+}
+function loadArt(sizes) {
+  ART.sizes = sizes || {};
+  return fetch('/assets.json', { cache: 'no-store' }).then(r => r.json()).then(m => {
+    ART.sizes = m.art || ART.sizes;
+    return Promise.all(m.files.map(f => new Promise(done => {
+      const img = new Image(), key = f.p.replace(/\.png$/i, '');
+      img.onload = () => { ART.imgs[key] = img; ART.meta[key] = measureArt(img); done(); };
+      img.onerror = () => done();   // 讀不到就算了,退回程式繪圖
+      img.src = '/assets/' + f.p + '?v=' + f.v;
+    })));
+  }).then(() => {
+    ART.count = Object.keys(ART.imgs).filter(k => !k.includes('_')).length;
+    if (ART.onload) ART.onload();
+  }).catch(() => {});
+}
+// 這個角色現在要用哪張圖 (可選動作圖:攻擊 / 受傷 / 睡著)
+function artFor(key, o) {
+  if (!ART.on || !ART.imgs[key]) return null;
+  if (o.atk > 0 && ART.imgs[key + '_attack']) return ART.imgs[key + '_attack'];
+  if (o.hurt && ART.imgs[key + '_hurt']) return ART.imgs[key + '_hurt'];
+  if (o.sleep && ART.imgs[key + '_sleep']) return ART.imgs[key + '_sleep'];
+  return ART.imgs[key];
+}
+// 圖片實際畫出來的邊長:所有圖用同一個比例 (256 圖片像素 = size),動作圖的畫布比主圖大時就畫得比較大;
+// 像素圖一律 2 倍不平滑放大
+function artDrawSize(key, img, size) { return ART.meta[key] && ART.meta[key].pixel ? img.width * 2 : img.width * size / 256; }
+// 把程式動畫套在圖片上:呼吸、走路彈跳、浮空、攻擊前傾、受傷閃白、倒下變灰、朝左翻轉
+function drawArt(g, key, x, y, o, size, hover) {
+  const img = artFor(key, o);
+  if (!img) return false;
+  const meta = ART.meta[key], t = o.t || 0, face = o.face || 1, sw = o.atk || 0, id = o.id || 0;
+  const ds = artDrawSize(key, img, size);
+  const breathe = Math.sin(t / 1000 * 3 + id) * 0.025;
+  const hop = o.walk ? Math.abs(Math.sin(t / 1000 * 10)) * 3 : 0;
+  const hov = hover ? hover + Math.sin(t / 300 + id) * 2.5 : 0;
+  const lunge = sw > 0 ? Math.sin(sw * Math.PI) : 0;
+  g.save();
+  g.translate(Math.round(x), Math.round(y));
+  const cw = (meta.r - meta.l) * ds;
+  shadow(g, Math.max(6, cw * 0.36), Math.max(2, cw * 0.1), hover ? 0.2 : 0.28);
+  g.translate(lunge * 5 * face, -hop - hov);
+  g.scale(face < 0 ? -1 : 1, 1);
+  if (lunge) { g.translate(0, -ds * 0.3); g.rotate(lunge * 0.14); g.translate(0, ds * 0.3); }
+  g.scale(1 - breathe * 0.6, 1 + breathe);
+  if (o.hurt) g.filter = 'brightness(2.4)';
+  else if (o.ko) g.filter = 'grayscale(1)';
+  g.imageSmoothingEnabled = !meta.pixel;
+  if (!meta.pixel) g.imageSmoothingQuality = 'high';
+  g.drawImage(img, -ds / 2, -ds, ds, ds);
+  g.restore();
+  return true;
+}
+// 頭頂高度 (放名字、血條、泡泡):有圖就依圖片內容計算
+function creatureH(sp) {
+  const key = 'pets/' + sp, img = ART.on && ART.imgs[key];
+  if (img) {
+    const a = ART.sizes[sp] || {}, ds = artDrawSize(key, img, a.size || 64);
+    return Math.round((1 - ART.meta[key].top) * ds + (a.hover || 0));
+  }
+  return CREATURE_H[sp] || 40;
+}
+// 身體寬度 (跟隨距離用):有圖就依圖片內容計算;pose = 'sleep' 等動作圖 (沒有那張圖就用主圖)
+const CREATURE_W = { poring: 22, slime: 26, imp: 24, goblin: 22, wolf: 36, fox: 36, skeleton: 22, dove: 28, bat: 30, griffin: 48, drake: 44, dragon: 140 };
+function creatureW(sp, pose) {
+  const base = 'pets/' + sp, key = pose && ART.imgs[base + '_' + pose] ? base + '_' + pose : base, img = ART.on && ART.imgs[key];
+  if (img) { const m = ART.meta[key]; return Math.round((m.r - m.l) * artDrawSize(key, img, (ART.sizes[sp] || {}).size || 64)); }
+  return CREATURE_W[sp] || 26;
+}
+// 地上的影子 (跟隨寵物做動作時用,大小和圖片版的影子一樣)
+function creatureShadow(g, sp, x, y) {
+  const w = creatureW(sp);
+  g.save(); g.translate(Math.round(x), Math.round(y));
+  shadow(g, Math.max(6, w * 0.36), Math.max(2, w * 0.1), (ART.sizes[sp] || {}).hover ? 0.2 : 0.28);
+  g.restore();
+}
+function drawNpcArt(g, cls, x, y, face, t) {
+  return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
+}
+
 function drawCreature(g, sp, x, y, o) {
   const t = o.t || 0, sw = o.atk || 0, face = o.face || 1;
   g.save();
   if (o.ko) { g.globalAlpha *= 0.45; }
+  const a = ART.sizes[sp];
+  if (a && drawArt(g, 'pets/' + sp, x, y, o, a.size, a.hover || 0)) { g.restore(); return; }
   switch (sp) {
     case 'poring': drawBlob(g, x, y, '#f49ac0', t, 1, o.id || 0, sw); break;
     case 'slime': drawBlob(g, x, y, '#6ccb4c', t, 1.15, o.id || 0, sw); break;
@@ -449,6 +626,37 @@ function iconC(id, it) {
     g.strokeStyle = '#6a5a3a'; g.lineWidth = 0.6; g.stroke();
     g.fillStyle = col; [[6, 7, 1.6], [10, 9, 1.3], [7, 12, 1.2], [10, 5, 1]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); });
     R(5, 5, 1, 2, 'rgba(255,255,255,.9)');
+  } else if (it.icon === 'food_meat') {
+    g.save(); g.translate(8, 8); g.rotate(-0.7);
+    R(-1, 2, 2, 6, '#f4f0e0'); ell(g, -1.2, 8, 1.4, 1.4, '#f4f0e0'); ell(g, 1.2, 8, 1.4, 1.4, '#f4f0e0');
+    ell(g, 0, -1.5, 5, 5.5, '#c8402a');
+    ell(g, -1.5, -3, 2, 2.2, '#f07a5a'); ell(g, 1.5, 0.5, 1.6, 1, '#f4e0d0');
+    g.restore();
+  } else if (it.icon === 'food_fish') {
+    g.save(); g.translate(8, 8); g.rotate(-0.3);
+    poly(g, [4, 0, 8, -4, 8, 4], '#3a70c0');
+    ell(g, -1, 0, 6, 3.4, '#5a9ae0'); ell(g, -1, 1.2, 5, 1.6, '#d8ecff');
+    R(-5, -1, 1, 1, '#1a1a1a'); R(-1, -3, 4, 1, '#3a70c0');
+    g.restore();
+  } else if (it.icon === 'food_berry') {
+    poly(g, [8, 2, 11, 1, 10, 4], '#3a9a3a'); R(7.5, 2, 1, 4, '#5a7a2a');
+    [[5.5, 9, '#a02880'], [10.5, 9, '#b83090'], [8, 12, '#c040a0'], [8, 7, '#d050b0']].forEach(([x, y, c]) => {
+      ell(g, x, y, 2.6, 2.6, c); R(x - 1, y - 1.2, 1, 1, 'rgba(255,255,255,.8)');
+    });
+  } else if (it.icon === 'food_wheat') {
+    R(7.5, 4, 1, 11, '#b08a30');
+    for (let i = 0; i < 4; i++) { ell(g, 6.3, 4 + i * 2.2, 1.4, 1.1, '#f0c040'); ell(g, 9.7, 4 + i * 2.2, 1.4, 1.1, '#e0b030'); }
+    ell(g, 8, 2.5, 1.2, 1.5, '#f8d860');
+  } else if (it.icon === 'food_wood') {
+    g.save(); g.translate(8, 9); g.rotate(-0.35);
+    R(-6, -3, 11, 6, '#8a5a2a'); R(-6, -3, 11, 1, '#a87038'); R(-6, 2, 11, 1, '#6a4018');
+    ell(g, 5, 0, 2.2, 3, '#d8b070'); ell(g, 5, 0, 1, 1.4, '#a07038');
+    g.restore();
+  } else if (it.icon === 'food_ore') {
+    poly(g, [2, 12, 4, 6, 9, 4, 14, 7, 14, 12, 9, 14], '#7a7a8a');
+    poly(g, [4, 6, 9, 4, 9, 9, 5, 10], '#9a9aaa');
+    poly(g, [8, 7, 10, 3, 12, 7, 10, 10], '#ff8a40'); poly(g, [10, 3, 12, 7, 10, 6], '#ffd080');
+    R(5, 11, 2, 1, '#5a5a6a');
   } else if (it.icon === 'sword') {
     g.translate(8, 8); g.rotate(Math.PI / 4);
     R(-1.2, -8, 2.4, 10, col); R(-1.2, -8, 1, 10, lighten(col));

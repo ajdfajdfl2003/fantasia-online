@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>去背工具 — 幻想之境 Online</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  html, body { overflow: auto; user-select: auto; background: #0b0f1c; }
+  body { padding: 10px; }
+  h1 { margin: 0 0 8px; font-size: 18px; color: #ffd84a; text-shadow: 1px 1px 0 #000; letter-spacing: 1px; }
+  h1 small { font-size: 12px; color: #9aa8cc; font-weight: normal; margin-left: 8px; }
+  .cols { display: grid; grid-template-columns: 270px minmax(320px, 1fr) 500px; gap: 10px; align-items: start; }
+  @media (max-width: 1150px) { .cols { grid-template-columns: 270px 1fr; } .cols > :last-child { grid-column: 1 / 3; } }
+  .panel > .body { padding: 8px 10px; }
+  .step { margin-bottom: 10px; }
+  .step > b { display: block; color: #ffe8a8; margin-bottom: 4px; }
+  .step label { display: flex; align-items: center; gap: 6px; margin: 3px 0; color: #e8e8e8; }
+  .step input[type=range] { flex: 1; accent-color: #e0b030; }
+  .step .val { width: 30px; text-align: right; color: #fff; }
+  select { font: inherit; padding: 2px 4px; background: #fffef6; border: 1px solid #6b6550; }
+  .fname { margin-top: 4px; color: #9fd0ff; font-family: Consolas, monospace; }
+  .note { color: #8a9ac4; font-size: 11px; line-height: 1.5; margin-top: 3px; }
+  .warn-box { color: #ffb04a; font-size: 12px; line-height: 1.5; margin-top: 4px; }
+  #drop { border: 2px dashed #6a7aa8; border-radius: 4px; padding: 14px 8px; text-align: center; color: #c8d4f0; cursor: pointer; }
+  #drop.over { border-color: #ffd84a; background: rgba(255, 216, 74, .1); }
+  .checker { background-color: #fff; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; }
+  #work { display: block; max-width: 100%; border: 1px solid #000; cursor: crosshair; }
+  .tools { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  .tools button.on { background: linear-gradient(180deg, #ffe890, #e0b030); }
+  #pv { display: block; border: 1px solid #000; image-rendering: pixelated; }
+  .outs { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+  .outs figure { margin: 0; text-align: center; color: #9aa8cc; font-size: 11px; }
+  .outs canvas, .outs img { display: block; width: 128px; height: 128px; border: 1px solid #000; image-rendering: pixelated; }
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  #msg { margin-top: 6px; min-height: 18px; line-height: 1.5; }
+  #msg.ok { color: #8aff9a; } #msg.err { color: #ff7a6a; }
+  .empty-hint { padding: 40px 10px; text-align: center; color: #6a7aa8; }
+</style>
+</head>
+<body>
+<h1>去背 / 裁切小工具 <small>把 AI 產生的圖整理成遊戲用的寵物圖(規格見 docs/art/美術規格.md)</small></h1>
+<div class="cols">
+  <!-- 左:設定 -->
+  <div class="panel">
+    <div class="title"><span>設定</span></div>
+    <div class="body">
+      <div class="step"><b>1. 要做哪一張?</b>
+        <label><select id="sel-kind"><option value="pets">寵物</option><option value="npcs">NPC</option></select>
+          <select id="sel-target"></select></label>
+        <label id="frame-row">動作 <select id="sel-frame"><option value="">主圖</option><option value="attack">攻擊</option><option value="hurt">受傷</option><option value="sleep">睡著</option></select></label>
+        <div class="fname" id="fname"></div>
+        <div class="note" id="finfo"></div>
+      </div>
+      <div class="step"><b>2. 原圖</b>
+        <div class="note">原圖放在專案的 art-src/ 資料夾、用中文名字命名,選了寵物就會自動載入:</div>
+        <div class="fname" id="srcfind"></div>
+        <div id="drop" style="margin-top:6px">或:拖曳圖片到這裡、點這裡選檔、Ctrl+V 貼上</div>
+        <input type="file" id="file" accept="image/*" hidden>
+        <div class="note" id="srcinfo"></div>
+      </div>
+      <div class="step"><b>3. 去背</b>
+        <label>容許值 <input type="range" id="tol" min="0" max="140" value="40"><span class="val" id="tol-v"></span></label>
+        <label>柔邊 <input type="range" id="soft" min="0" max="80" value="28"><span class="val" id="soft-v"></span></label>
+        <label><input type="checkbox" id="enclosed"> 也去掉被圍住的背景(例如腳和身體中間)</label>
+        <label><input type="checkbox" id="clean" checked> 清掉小碎塊 <input type="range" id="clean-pct" min="0" max="20" value="2"><span class="val" id="clean-v"></span></label>
+        <div class="note">去背是從圖片邊緣往內「漫水」,碰到外框就停,所以身體裡的白色不會被去掉。</div>
+        <div class="warn-box" id="bgwarn"></div>
+      </div>
+      <div class="step"><b>4. 裁切與方向</b>
+        <label><input type="checkbox" id="flip"> 水平翻轉(原圖朝左時勾選,遊戲要朝右)</label>
+        <label>上方留白 <input type="range" id="pad" min="0" max="24" value="4"><span class="val" id="pad-v"></span></label>
+        <label id="fscale-row" hidden>動作圖大小 <input type="range" id="fscale" min="50" max="150" value="100"><span class="val" id="fscale-v"></span></label>
+        <div class="note" id="fscale-note"></div>
+      </div>
+      <div class="step"><b>5. 像素化(可選)</b>
+        <label><input type="checkbox" id="pix"> 轉成像素風(畫布 = 顯示大小 ÷ 2)</label>
+        <label>顏色數 <input type="range" id="colors" min="4" max="32" value="16"><span class="val" id="colors-v"></span></label>
+        <label><input type="checkbox" id="outline" checked> 加深色外框</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中:編輯區 -->
+  <div class="panel">
+    <div class="title"><span>去背結果(可以用筆刷修)</span></div>
+    <div class="body">
+      <div class="tools">
+        <button id="b-erase" class="on">橡皮擦</button><button id="b-restore">還原筆</button>
+        筆刷 <input type="range" id="brush" min="2" max="80" value="16"><span class="val" id="brush-v"></span>
+        <button id="b-clear">清除筆刷修改</button>
+        <label><input type="checkbox" id="show-src"> 看原圖</label>
+      </div>
+      <div id="work-wrap"><div class="empty-hint">還沒有圖片。先在左邊選要做哪一張,再把圖片拖進來。</div></div>
+    </div>
+  </div>
+
+  <!-- 右:預覽與輸出 -->
+  <div class="panel">
+    <div class="title"><span>遊戲中預覽與輸出</span></div>
+    <div class="body">
+      <canvas id="pv" width="480" height="240"></canvas>
+      <div class="note">上:地圖上實際大小(主人 / 這張圖 / 程式繪圖)。下:放大 2 倍的戰鬥畫面。</div>
+      <div class="outs">
+        <figure><canvas id="out-view" width="128" height="128" class="checker"></canvas><figcaption id="out-cap">成品</figcaption></figure>
+        <figure><img id="cur-img" class="checker" alt=""><figcaption id="cur-cap">遊戲裡目前的圖</figcaption></figure>
+      </div>
+      <div class="btns">
+        <button id="b-save" class="big" disabled>存進遊戲</button>
+        <button id="b-dl" disabled>下載 PNG</button>
+        <button id="b-del" disabled>刪除遊戲裡的這張圖</button>
+      </div>
+      <div id="msg"></div>
+      <div class="note">「存進遊戲」會直接寫到 public/assets/(只有在這台電腦上開的工具能存)。存好之後重新整理遊戲頁面就會看到。</div>
+    </div>
+  </div>
+</div>
+<script src="../sprites.js"></script>
+<script src="sprite-tool.js"></script>
+</body>
+</html>

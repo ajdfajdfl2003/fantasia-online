@@ -104,6 +104,8 @@ const UI = (() => {
     drawHumanoid(pg, 30, 74, { ...lookOwner(S.cls, S.myName), scale: 3, face: 1 }, 0);
     for (const b of document.querySelectorAll('#menu [data-win]')) b.onclick = () => toggleWin(b.dataset.win);
     el('btn-snd').onclick = toggleSound;
+    el('btn-art').onclick = toggleArt;
+    artLabel();
     el('st-pet').onclick = () => toggleWin('pets');
     el('bp-auto').onchange = e => toggleAuto(e.target.checked);
     for (const w of document.querySelectorAll('.win')) {
@@ -135,6 +137,7 @@ const UI = (() => {
     front(el('win-' + n));
     if (n === 'pets') renderPets();
     if (n === 'hatch') renderHatch();
+    if (n === 'bank') renderBank();
     sfx('click');
   }
   function closeWin(n) {
@@ -146,8 +149,26 @@ const UI = (() => {
     if (n === 'dlg') clearInterval(twTimer);
     el('tip').hidden = true;
   }
-  function closeAll() { for (const n of ['inv', 'pets', 'hatch', 'help', 'dlg', 'shop']) closeWin(n); closeMenus(); }
+  function closeAll() { for (const n of ['inv', 'pets', 'hatch', 'help', 'dlg', 'shop', 'bank']) closeWin(n); closeMenus(); }
   function toggleSound() { muted = !muted; el('btn-snd').textContent = '音效:' + (muted ? '關' : '開'); }
+  // 美術:圖片 / 程式繪圖 (比較畫風用)
+  function artLabel() {
+    el('btn-art').textContent = '美術:' + (ART.on ? `圖片${ART.count ? ' (' + ART.count + ')' : ''}` : '程式');
+    el('btn-art').title = ART.count ? `public/assets 裡有 ${ART.count} 張圖。沒有圖的角色一律用程式繪圖。` : '還沒有任何圖片,全部用程式繪圖。';
+  }
+  function toggleArt() {
+    ART.on = !ART.on;
+    try { localStorage.setItem('fantasia.art', ART.on ? 'on' : 'off'); } catch (e) { /* 忽略 */ }
+    artChanged();
+  }
+  function artChanged() {
+    artLabel();
+    el('sp-name').dataset.sp = '';   // 讓頭像重畫
+    bpKey = '';
+    status();
+    if (!el('win-pets').hidden) renderPets();
+    if (!el('win-bank').hidden) renderBank();
+  }
 
   function overlay(title, msg, btn, fn, extraHTML = '') {
     el('ov-title').textContent = title;
@@ -186,6 +207,11 @@ const UI = (() => {
     if (pt && !p) el('sp-star').innerHTML = stars(pt.star);
     setBar('sp-hp', 'sp-hptxt', show.hp, show.mh, '');
     setBar('sp-mp', 'sp-mptxt', show.mp, show.mm, '');
+    el('sp-foodbar').hidden = !pt;
+    if (pt) {
+      setBar('sp-food', 'sp-foodtxt', pt.food, 100, '飽食 ');
+      el('sp-foodbar').classList.toggle('warn', pt.food < (S.care.hungry || 30));
+    }
   }
 
   // ============================================================
@@ -225,6 +251,7 @@ const UI = (() => {
         pb.appendChild(btn(sk.name, String(i + 2), () => petCmd('skill', s), { sub: 'MP ' + sk.mp, data: { cost: sk.mp, who: 'p', pskill: s } }));
       });
       pb.appendChild(btn('防禦', '5', () => petCmd('def'), { data: { cost: 0, who: 'p' } }));
+      if (p.sy >= 0) pb.appendChild(btn('助攻', 'T', assistCmd, { sub: '默契 0%', data: { who: 'a' } }));
     } else {
       drawPetFace(el('bp-petface'), null);
       el('bp-petname').textContent = '寵物不在場上';
@@ -244,7 +271,7 @@ const UI = (() => {
   function battleTick(t) {
     const { rb, o, p } = myUnits();
     if (!rb) return;
-    const key = [p && p.i, p && p.lv, o && o.i, S.me && S.me.lv, countItem('red_potion'), countItem('seal_card')].join();
+    const key = [p && p.i, p && p.lv, p && p.ko, p && p.sy >= 0, o && o.i, S.me && S.me.lv, countItem('red_potion'), countItem('seal_card')].join();
     if (key !== bpKey) { bpKey = key; buildBattlePanel(p && !p.ko ? p : null, o); }
     const atb = (u, id, vals) => {
       el(id).style.width = (u && !u.ko ? unitBar(u, t) : 0) + '%';
@@ -254,6 +281,13 @@ const UI = (() => {
     atb(p, 'bp-petatb', 'bp-petvals');
     atb(o, 'bp-ownatb', 'bp-ownvals');
     for (const b of document.querySelectorAll('#bpanel .bbtn')) {
+      if (b.dataset.who === 'a') {   // 助攻:默契滿了才能按,不用等主人的時間棒
+        const ready = p && !p.ko && p.sy >= 100 && !p.sg && o && !o.ko;
+        b.disabled = !ready;
+        b.classList.toggle('glow', !!ready);
+        b.querySelector('small').textContent = p && p.sg ? '發動中!' : `默契 ${p ? Math.max(0, p.sy) : 0}%`;
+        continue;
+      }
       const u = b.dataset.who === 'p' ? p : o;
       const ok = u && u.rd && !u.ko && u.mp >= (+b.dataset.cost || 0) && !b.dataset.locked && !(u.st || []).includes('sleep');
       b.disabled = !ok;
@@ -272,13 +306,19 @@ const UI = (() => {
       const b = document.createElement('button');
       b.innerHTML = it.html;
       b.disabled = !!it.disabled;
+      if (it.cls) b.className = it.cls;
       b.onclick = e => { e.stopPropagation(); closeMenus(); it.fn(); };
       m.appendChild(b);
     }
     m.hidden = false;
+    if (anchor && anchor.x !== undefined && !anchor.getBoundingClientRect) {   // 指定螢幕座標 (地圖上點寵物)
+      m.style.left = Math.max(4, Math.min(anchor.x + 12, innerWidth - m.offsetWidth - 4)) + 'px';
+      m.style.top = Math.max(4, Math.min(anchor.y - m.offsetHeight / 2, innerHeight - m.offsetHeight - 4)) + 'px';
+      return;
+    }
     const r = (anchor || el('bp-ownbtns')).getBoundingClientRect();
     m.style.left = Math.max(4, Math.min(r.left, innerWidth - 220)) + 'px';
-    m.style.top = (r.top - m.offsetHeight - 6) + 'px';
+    m.style.top = Math.max(4, r.top - m.offsetHeight - 6) + 'px';
   }
   function closeMenus() { el('menu-pop').hidden = true; }
   function itemMenu(anchor) {
@@ -305,6 +345,7 @@ const UI = (() => {
   function pets() {
     status();
     bpKey = '';
+    bank();
     if (el('win-pets').hidden) return;
     if (renaming) renderPetList();   // 改名中不要重畫詳細資料,不然輸入框會被洗掉
     else renderPets();
@@ -322,7 +363,9 @@ const UI = (() => {
       const pt = S.pets[i], d = document.createElement('div');
       if (!pt) { d.className = 'pet-slot empty'; d.textContent = '空的封印卡欄位'; list.appendChild(d); continue; }
       d.className = 'pet-slot' + (i === petSel ? ' sel' : '') + (pt.hp <= 0 ? ' ko' : '');
-      d.innerHTML = `<img src="${petIconURL(pt.sp)}"><div class="ps-info"><b>${esc(pt.n)}</b>${i === S.act ? '<span class="act">出戰</span>' : ''}<br>
+      const mood = MOOD_TAG[pt.mood];
+      d.innerHTML = `<img src="${petIconURL(pt.sp)}"><div class="ps-info"><b>${esc(pt.n)}</b>${i === S.act ? '<span class="act">出戰</span>' : ''}
+        ${mood ? `<span class="mood-tag ${mood[1]}">${mood[0]}</span>` : ''}<br>
         Lv.${pt.lv} <span class="star">${stars(pt.star)}</span>
         <div class="bar thin hp"><i style="width:${clamp(pt.hp / pt.mhp, 0, 1) * 100}%"></i></div></div>`;
       d.onclick = () => { petSel = i; renaming = false; renderPets(); };
@@ -352,6 +395,7 @@ const UI = (() => {
           <div class="bar thin mp"><i style="width:${clamp(pt.mp / pt.mmp, 0, 1) * 100}%"></i><span>MP ${pt.mp}/${pt.mmp}</span></div>
         </div>
       </div>
+      ${careHTML(pt, inBattle)}
       <table class="pd-stats">
         ${row(0, '攻擊', pt.atk)}${row(1, '防禦', pt.def)}${row(2, '魔攻', pt.matk)}${row(3, '魔防', pt.mdef)}
         <tr><th>剩餘點數</th><td class="gold">${pt.pts}</td><td><button class="mini" id="pd-auto" ${pt.pts > 0 && !inBattle ? '' : 'disabled'}>自動</button></td><th>速度</th><td>${pt.spd}</td></tr>
@@ -364,6 +408,9 @@ const UI = (() => {
       <div class="hint">${inBattle ? '戰鬥中不能配點或更換出戰寵物。' : '點 + 分配能力點數(Shift+點 一次 5 點)。'}</div>`;
     box.querySelectorAll('.plus').forEach(b => b.onclick = e => send({ t: 'palloc', i: petSel, s: +b.dataset.s, n: e.shiftKey ? 5 : 1 }));
     const q = id => box.querySelector('#' + id);
+    const idx = petSel;
+    if (q('pd-feed')) q('pd-feed').onclick = e => { e.stopPropagation(); feedMenu(e.currentTarget, idx); };
+    for (const a of ['pet', 'play', 'trick']) if (q('pd-' + a)) q('pd-' + a).onclick = () => send({ t: 'pact', i: idx, a });
     if (q('pd-auto')) q('pd-auto').onclick = () => send({ t: 'pauto', i: petSel });
     if (q('pd-act')) q('pd-act').onclick = () => send({ t: 'pset', i: petSel });
     if (q('pd-rel')) q('pd-rel').onclick = () => { if (confirm(`確定要放生「${pt.n}」嗎?放生之後就回不來了。`)) send({ t: 'prelease', i: petSel }); };
@@ -378,6 +425,98 @@ const UI = (() => {
         e.stopPropagation();
       };
     }
+  }
+
+  // ============================================================
+  //  寵物照顧:飽食度 / 快樂值 / 親密度、餵食、互動
+  // ============================================================
+  const MOOD_TAG = { starve: ['餓昏', 'bad'], hungry: ['肚子餓', 'warn'], angry: ['鬧脾氣', 'bad'], love: ['♥', 'love'] };
+  const careWord = {
+    food: v => v <= 0 ? ['餓昏了!', 'bad'] : v < (S.care.hungry || 30) ? ['肚子餓', 'warn'] : v >= (S.care.full || 90) ? ['吃飽了', 'good'] : ['', ''],
+    joy: v => v < 10 ? ['非常不開心', 'bad'] : v < 30 ? ['鬧脾氣', 'warn'] : v >= 80 ? ['很開心', 'good'] : ['普通', ''],
+    bond: v => v < 20 ? ['陌生', ''] : v < 40 ? ['熟悉', ''] : v < 60 ? ['親近', 'good'] : v < 80 ? ['信賴', 'good'] : ['心意相通', 'love'],
+  };
+  const tasteOf = (sp, id) => sp.love === '*' ? 'like' : id === sp.love ? 'love' : id === sp.hate ? 'hate' : 'ok';
+  function careHTML(pt, inBattle) {
+    const sp = S.species[pt.sp] || {}, C = S.care;
+    const bar = (k, label, v) => {
+      const [w, c] = careWord[k](v);
+      return `<div class="care-row"><span>${label}</span><div class="bar thin ${k}"><i style="width:${clamp(v, 0, 100)}%"></i><span>${v} / 100</span></div><em class="${c}">${w}</em></div>`;
+    };
+    const food = id => id && S.items[id] ? `<img src="${iconURLof(id, S.items[id])}">${esc(S.items[id].name)}` : '—';
+    const taste = sp.love === '*' ? '雜食:什麼都喜歡吃' : `最愛 ${food(sp.love)}  討厭 ${food(sp.hate)}`;
+    const cd = a => pt.cd && pt.cd[a] > 0 ? '<small>(冷卻)</small>' : '';
+    const lock = (need, name) => pt.bond >= need ? `<b class="good">${name}</b>` : `<span class="dim">${name}(親密 ${need})</span>`;
+    const syncB = C.sync_bond || 40, trickB = C.trick_bond || 50, guardB = C.guard_bond || 60;
+    return `<div class="pd-care">
+      ${bar('food', '飽食度', pt.food)}${bar('joy', '快樂值', pt.joy)}${bar('bond', '親密度', pt.bond)}
+      <div class="care-taste">${taste}${pt.sulk ? ' <span class="mood-tag bad">賭氣中</span>' : ''}</div>
+      <div class="care-btns">
+        <button id="pd-feed" ${inBattle ? 'disabled' : ''}>餵食 ▸</button>
+        <button id="pd-pet" ${inBattle ? 'disabled' : ''}>摸摸${cd('pet')}</button>
+        <button id="pd-play" ${inBattle || pt.food < 10 ? 'disabled' : ''}>玩耍${cd('play')}</button>
+        <button id="pd-trick" ${inBattle || pt.bond < trickB ? 'disabled' : ''}>表演</button>
+      </div>
+      <div class="care-bond">助攻加成 <b class="gold">+${Math.round((C.assist || 0.5) * Math.min(100, pt.bond))}%</b> ·
+        ${lock(syncB, '默契助攻')}${pt.bond >= syncB ? ` <small>${pt.sync}%</small>` : ''} · ${lock(trickB, '表演')} · ${lock(guardB, '護主')}</div>
+    </div>`;
+  }
+  function feedMenu(anchor, idx) {
+    const pt = S.pets[idx];
+    if (!pt) return;
+    const sp = S.species[pt.sp] || {}, order = { love: 0, like: 1, ok: 2, hate: 3 };
+    const foods = [...S.foods].sort((a, b) => order[tasteOf(sp, a)] - order[tasteOf(sp, b)]);
+    const items = foods.map(id => {
+      const r = tasteOf(sp, id), n = countItem(id);
+      return { html: `<img src="${iconURLof(id, S.items[id])}"> ${esc(S.items[id].name)} ×${n} <small class="taste-${r}">${esc(S.tasteNames[r] || '')}</small>`,
+        disabled: !n, fn: () => send({ t: 'feed', i: idx, item: id }) };
+    });
+    items.unshift({ html: `餵 <b>${esc(pt.n)}</b> 吃什麼?<small>飽食 ${pt.food}</small>`, disabled: true, cls: 'menu-head', fn: () => {} });
+    if (!S.foods.some(countItem)) items.push({ html: '<span class="dim">背包裡沒有食物,向莉莉購買吧</span>', disabled: true, cls: 'menu-head', fn: () => {} });
+    popMenu(anchor, items);
+  }
+  // 在地圖上點自己的寵物
+  function petMenu(x, y) {
+    const idx = S.act, pt = S.pets[idx];
+    if (!pt || S.myBattle) return;
+    const trickB = S.care.trick_bond || 50, cd = a => pt.cd && pt.cd[a] > 0 ? '<small>冷卻中</small>' : '';
+    const trick = (S.species[pt.sp] || {}).trick || [''];
+    popMenu({ x, y }, [
+      { html: `<b>${esc(pt.n)}</b><small>飽食 ${pt.food} 快樂 ${pt.joy} 親密 ${pt.bond}</small>`, disabled: true, cls: 'menu-head', fn: () => {} },
+      { html: `摸摸 ${cd('pet')}`, fn: () => send({ t: 'pact', i: idx, a: 'pet' }) },
+      { html: '餵食 ▸', fn: () => setTimeout(() => feedMenu({ x, y }, idx), 0) },
+      { html: pt.food < 10 ? '玩耍 <small>太餓了</small>' : `玩耍 ${cd('play')}`, disabled: pt.food < 10, fn: () => send({ t: 'pact', i: idx, a: 'play' }) },
+      { html: pt.bond < trickB ? `表演 <small>親密 ${trickB}</small>` : `表演「${esc(trick[0])}」`, disabled: pt.bond < trickB, fn: () => send({ t: 'pact', i: idx, a: 'trick' }) },
+      { html: '寵物資料', fn: () => { petSel = idx; openWin('pets'); } },
+    ]);
+  }
+
+  // ============================================================
+  //  寵物旅館
+  // ============================================================
+  function openBank() { openWin('bank'); }
+  function bank() { if (!el('win-bank').hidden) renderBank(); }
+  const bankCount = () => S.bank.filter(x => !x.sulk).length;
+  function bankRow(pt, i, put) {
+    const d = document.createElement('div');
+    d.className = 'bank-row' + (pt.sulk ? ' sulk' : '');
+    d.innerHTML = `<img src="${petIconURL(pt.sp)}"><div class="ps-info"><b>${esc(pt.n)}</b> Lv.${pt.lv} <span class="star">${stars(pt.star)}</span>
+      ${pt.sulk ? '<span class="mood-tag bad">賭氣中</span>' : ''}<br><small>飽食 ${pt.food} · 快樂 ${pt.joy} · 親密 ${pt.bond}</small></div>`;
+    const b = document.createElement('button');
+    b.textContent = put ? '寄放 →' : '← 領回';
+    b.disabled = put ? (S.pets.length <= 1 || bankCount() >= S.bankMax) : S.pets.length >= S.petMax;
+    b.onclick = () => send({ t: put ? 'bput' : 'bget', i });
+    d.appendChild(b);
+    return d;
+  }
+  function renderBank() {
+    const a = el('bank-party'), b = el('bank-list');
+    a.innerHTML = ''; b.innerHTML = '';
+    S.pets.forEach((pt, i) => a.appendChild(bankRow(pt, i, true)));
+    S.bank.forEach((pt, i) => b.appendChild(bankRow(pt, i, false)));
+    if (!S.bank.length) b.innerHTML = '<div class="dim bank-empty">旅館裡還沒有寵物。</div>';
+    el('bank-n1').textContent = `${S.pets.length}/${S.petMax}`;
+    el('bank-n2').textContent = `${bankCount()}/${S.bankMax}`;
   }
 
   // ============================================================
@@ -581,8 +720,12 @@ const UI = (() => {
   function itemTip(id, isShop) {
     const it = S.items[id];
     if (!it) return '';
-    const type = { use: '消耗品', seal: '捕捉道具', egg: '寵物蛋' }[it.type] || '';
-    return `<b>${esc(it.name)}</b><br><span class="t">${type}</span><br>${esc(it.desc || '')}<br>` +
+    const type = { use: '消耗品', seal: '捕捉道具', egg: '寵物蛋', food: '寵物食物' }[it.type] || '';
+    const tastes = it.type === 'food' && S.pets.length ? '<br>' + S.pets.map(pt => {
+      const r = tasteOf(S.species[pt.sp] || {}, id);
+      return `${esc(pt.n)}:<span class="taste-${r}">${esc(S.tasteNames[r] || '')}</span>`;
+    }).join('  ') : '';
+    return `<b>${esc(it.name)}</b><br><span class="t">${type}</span><br>${esc(it.desc || '')}${tastes}<br>` +
       (isShop ? `<span class="p">售價 ${it.price} 金幣</span>` : `<span class="p">賣出價 ${Math.floor(it.price / 3)} 金幣</span>`);
   }
   function pskillTip(s) {
@@ -620,7 +763,7 @@ const UI = (() => {
   return {
     initLogin, loginError, enterGame, overlay, status, inv, pets, chat, addChat, dialog, shop,
     openHatch, hatchUpdate, hatched, openPets, battleOpen, battleClose, battleAuto, tick,
-    closeMenus, swapMenu, toggleWin, toggleSound, closeAll,
+    closeMenus, swapMenu, toggleWin, toggleSound, closeAll, petMenu, bank, openBank, artChanged,
   };
 })();
 

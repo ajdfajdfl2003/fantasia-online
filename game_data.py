@@ -75,36 +75,49 @@ PET_SKILLS = {
 #  pref: 自動配點 / 天生素質的偏好權重      skills: (技能, 學會等級)
 #  cap: 捕捉難易度 (越高越好抓,0 = 無法捕捉)
 #  egg: 有蛋的寵物 (商店價格、最佳孵化溫度與濕度)
+#  love / hate: 最愛 / 討厭的食物 (love = '*' 表示雜食,每種都喜歡)
+#  trick: 表演 (名稱, 動作, 喊的話)  動作:bounce squash spin howl shake fire circle flip jump
 # ============================================================
 SPECIES = {
     'poring':   {'name': '噗噗', 'el': 'earth', 'fam': 'bug', 'base': (15, 14, 9, 12), 'grow': 4, 'pref': (1, 2, 1, 1),
-                 'skills': [('tackle', 1), ('heal', 5), ('quake', 10)], 'cap': 0.75},
+                 'skills': [('tackle', 1), ('heal', 5), ('quake', 10)], 'cap': 0.75,
+                 'love': 'berry', 'hate': 'wood', 'trick': ('彈跳三連', 'bounce', '噗噗噗!')},
     'slime':    {'name': '綠史萊姆', 'el': 'water', 'fam': 'bug', 'base': (16, 10, 10, 12), 'grow': 5, 'pref': (2, 1, 1, 1),
-                 'skills': [('double', 1), ('iceball', 5), ('sneak', 10)], 'cap': 0.7},
+                 'skills': [('double', 1), ('iceball', 5), ('sneak', 10)], 'cap': 0.7,
+                 'love': '*', 'hate': None, 'trick': ('軟Q壓扁', 'squash', '啵~')},
     'goblin':   {'name': '哥布林', 'el': 'earth', 'fam': 'humanoid', 'base': (14, 14, 8, 12), 'grow': 4, 'pref': (2, 2, 0, 1),
-                 'skills': [('tackle', 1), ('sneak', 5), ('heal', 10)], 'cap': 0.6},
+                 'skills': [('tackle', 1), ('sneak', 5), ('heal', 10)], 'cap': 0.6,
+                 'love': 'wheat', 'hate': 'fish', 'trick': ('揮棒轉圈', 'spin', '嘿嘿!')},
     'wolf':     {'name': '野狼', 'el': 'wind', 'fam': 'beast', 'base': (18, 13, 8, 17), 'grow': 4, 'pref': (2, 1, 0, 2),
-                 'skills': [('double', 1), ('gale', 5), ('triple', 10)], 'cap': 0.55},
+                 'skills': [('double', 1), ('gale', 5), ('triple', 10)], 'cap': 0.55,
+                 'love': 'meat', 'hate': 'wheat', 'trick': ('仰天長嚎', 'howl', '嗷嗚~')},
     'skeleton': {'name': '骷髏兵', 'el': 'dark', 'fam': 'humanoid', 'base': (20, 10, 16, 15), 'grow': 5, 'pref': (2, 1, 1, 1),
-                 'skills': [('double', 1), ('darkcircle', 5), ('drain', 10)], 'cap': 0.45},
+                 'skills': [('double', 1), ('darkcircle', 5), ('drain', 10)], 'cap': 0.45,
+                 'love': 'wood', 'hate': 'meat', 'trick': ('骨頭喀啦喀啦', 'shake', '喀啦喀啦')},
     'imp':      {'name': '小火妖', 'el': 'fire', 'fam': 'fairy', 'base': (12, 12, 22, 16), 'grow': 6, 'pref': (0, 1, 3, 1),
                  'skills': [('fireball', 1), ('weaken', 5), ('flamerain', 10)], 'cap': 0.4,
-                 'egg': {'price': 450, 'temp': 90, 'hum': 10}},
+                 'egg': {'price': 450, 'temp': 90, 'hum': 10},
+                 'love': 'ore', 'hate': 'fish', 'trick': ('噴火圈', 'fire', '呼~!')},
     'dove':     {'name': '彩虹鴿', 'el': 'light', 'fam': 'wing', 'base': (22, 18, 15, 18), 'grow': 4, 'pref': (2, 1, 1, 1),
                  'skills': [('double', 1), ('laser', 5), ('triple', 10)], 'cap': 0.5,
-                 'egg': {'price': 260, 'temp': 60, 'hum': 35}},
+                 'egg': {'price': 260, 'temp': 60, 'hum': 35},
+                 'love': 'wheat', 'hate': 'meat', 'trick': ('繞圈飛', 'circle', '咕咕~')},
     'fox':      {'name': '月狐', 'el': 'water', 'fam': 'beast', 'base': (16, 10, 19, 16), 'grow': 4, 'pref': (0, 1, 2, 1),
                  'skills': [('iceball', 1), ('sleep', 5), ('icicle', 10)], 'cap': 0.45,
-                 'egg': {'price': 260, 'temp': 50, 'hum': 60}},
+                 'egg': {'price': 260, 'temp': 50, 'hum': 60},
+                 'love': 'fish', 'hate': 'wood', 'trick': ('追尾巴', 'spin', '嗚嗚~')},
     'bat':      {'name': '吸血蝙蝠', 'el': 'dark', 'fam': 'wing', 'base': (19, 18, 18, 18), 'grow': 5, 'pref': (1, 1, 1, 1),
                  'skills': [('drain', 1), ('sleep', 5), ('darkcircle', 10)], 'cap': 0.45,
-                 'egg': {'price': 320, 'temp': 60, 'hum': 60}},
+                 'egg': {'price': 320, 'temp': 60, 'hum': 60},
+                 'love': 'berry', 'hate': 'wheat', 'trick': ('倒吊', 'flip', '吱吱!')},
     'griffin':  {'name': '獅鷲獸', 'el': 'light', 'fam': 'wing', 'base': (20, 20, 13, 20), 'grow': 5, 'pref': (2, 1, 1, 2),
                  'skills': [('tackle', 1), ('holy', 5), ('weaken', 10)], 'cap': 0.3,
-                 'egg': {'price': 900, 'temp': 60, 'hum': 60}},
+                 'egg': {'price': 900, 'temp': 60, 'hum': 60},
+                 'love': 'meat', 'hate': 'berry', 'trick': ('展翅高飛', 'jump', '嘎——!')},
     'drake':    {'name': '幼龍', 'el': 'fire', 'fam': 'wing', 'base': (22, 20, 20, 18), 'grow': 6, 'pref': (1, 1, 1, 1),
                  'skills': [('tackle', 1), ('fireball', 3), ('breath', 8)], 'cap': 0,
-                 'egg': {'price': 3000, 'temp': 95, 'hum': 20, 'shop': False}},
+                 'egg': {'price': 3000, 'temp': 95, 'hum': 20, 'shop': False},
+                 'love': 'ore', 'hate': 'fish', 'trick': ('噴小火苗', 'fire', '噗~呼!')},
 }
 
 
@@ -187,7 +200,8 @@ CLASSES = {
 }
 
 STATUS_NAMES = {'atkup': '攻↑', 'defup': '防↑', 'matkup': '魔↑', 'atkdown': '攻↓', 'defdown': '防↓',
-                'slow': '緩', 'haste': '速', 'sleep': '睡', 'poison': '毒', 'guard': '防禦', 'shield': '盾'}
+                'slow': '緩', 'haste': '速', 'sleep': '睡', 'poison': '毒', 'guard': '防禦', 'shield': '盾',
+                'protect': '護主'}
 
 # ============================================================
 #  道具
@@ -208,8 +222,116 @@ for _k, _sp in SPECIES.items():
                               'icon': 'egg', 'col': ELEMENT_COLORS[_sp['el']],
                               'desc': '%s屬性的蛋。拿到孵化屋孵化吧!' % ELEMENTS[_sp['el']]}
 
-SHOP_ITEMS = ['red_potion', 'blue_potion', 'revive_herb', 'seal_card']
+# 寵物的食物 (每種寵物愛吃的不同,見 SPECIES 的 love / hate)
+FOODS = {
+    'meat':  {'name': '鮮肉', 'price': 8, 'col': '#d84a4a', 'desc': '新鮮的生肉。肉食的寵物最愛。'},
+    'fish':  {'name': '鮮魚', 'price': 8, 'col': '#5a9ae0', 'desc': '剛釣上來的魚。'},
+    'berry': {'name': '莓果', 'price': 5, 'col': '#c040a0', 'desc': '酸酸甜甜的野莓。'},
+    'wheat': {'name': '麥穗', 'price': 5, 'col': '#e0b040', 'desc': '金黃色的麥穗。'},
+    'wood':  {'name': '木材', 'price': 5, 'col': '#9a6a3a', 'desc': '乾燥的木頭……真的有寵物會吃嗎?'},
+    'ore':   {'name': '礦石', 'price': 10, 'col': '#8a8aa0', 'desc': '亮晶晶的礦石。火屬性的寵物好像很喜歡。'},
+}
+for _k, _f in FOODS.items():
+    ITEMS[_k] = {'name': _f['name'], 'type': 'food', 'price': _f['price'], 'icon': 'food_' + _k, 'col': _f['col'],
+                 'desc': _f['desc'] + '雙擊餵給出戰寵物。'}
+
+SHOP_ITEMS = ['red_potion', 'blue_potion', 'revive_herb', 'seal_card'] + list(FOODS)
 EGG_SHOP = ['egg_' + k for k, sp in SPECIES.items() if 'egg' in sp and sp['egg'].get('shop', True)]
+
+# ============================================================
+#  寵物照顧 (飽食度、快樂值、親密度,範圍都是 0~100)
+#  時間類的數值都是「每小時」,只算線上時間 (離線暫停)
+# ============================================================
+CARE = {
+    # 起始值 (飽食度, 快樂值, 親密度)
+    'start_new': (80, 70, 20), 'start_hatch': (70, 80, 30), 'start_wild': (50, 40, (0, 10)), 'start_old': (80, 70, 15),
+    'hungry': 30,              # 低於這個值 = 肚子餓
+    'full': 90,                # 這個值以上吃不下
+    'angry': 30,               # 快樂值低於這個值 = 鬧脾氣 (冒 💢 泡泡)
+    'love_joy': 80, 'love_bond': 60,   # 春心蕩漾 ♥ 泡泡:快樂值、親密度都到這個值 (階段 3 接到發情)
+    'hungry_mult': 0.9,        # 肚子餓時,戰鬥的攻擊/魔攻/防禦/魔防倍率
+    'food_active': 15.0,       # 出戰寵物每小時消耗
+    'food_other': 7.5,         # 身上其他寵物每小時消耗
+    'food_battle': 0.5,        # 每場戰鬥 (有上場過的寵物)
+    'joy_decay': 6.0,          # 快樂值每小時自然下降
+    'joy_hungry': 60.0,        # 肚子餓時每小時額外下降
+    'joy_starve': 120.0,       # 餓昏時每小時額外下降
+    'joy_bank': 60.0,          # 寄放在旅館時每小時回升
+    'starve_bond': -2,         # 餓昏 (飽食度歸零) 那一刻的親密度
+    # 戰鬥 (快樂值, 親密度)
+    'win': (1, 0.05), 'lose': (-10, 0), 'ko': (-5, -1), 'levelup': (10, 0),
+    # 不聽指令:(快樂值低於, 機率);親密度會打折:× (1 - 親密度 / 200)
+    'disobey': [(10, 0.30), (30, 0.15)],
+    # 助攻 A:主人技能對自己的寵物 ×(1 + assist × 親密度/100)
+    'assist': 0.5,
+    # 助攻 B:默契量表
+    'sync_bond': 40, 'sync_act': 6, 'sync_hit': 4, 'sync_power': 1.5,
+    # 護主:連動傷害比例 (親密度 0 → 100),護主姿態
+    'link_max': 0.15, 'link_min': 0.05,
+    'guard_bond': 60, 'guard_enter': 0.30, 'guard_leave': 0.50, 'guard_def': 1.3,
+    # 離家出走:快樂值與飽食度都是 0 持續幾秒 (只算線上、戰鬥外)
+    'sulk_warn': 300, 'sulk_leave': 600, 'sulk_bond': -10, 'sulk_food': 40,
+    'miss_you': 86400,         # 離線超過幾秒,上線時寵物會說想你
+    'sleepy_idle': 20,         # 主人幾秒沒動,寵物開始打瞌睡
+    'food_drop': 0.25,         # 野生寵物掉落最愛食物的機率
+    'bank_max': 20,            # 寵物旅館可以寄放幾隻
+}
+
+# 餵食效果:口味 → (飽食度, 快樂值, 親密度)
+TASTE = {'love': (35, 10, 4), 'like': (30, 5, 2), 'ok': (30, 2, 0), 'hate': (15, -8, 0)}
+TASTE_NAMES = {'love': '最愛', 'like': '喜歡', 'ok': '普通', 'hate': '討厭'}
+
+# 互動動作:快樂值、親密度、飽食度、冷卻秒數、條件
+INTERACT = {
+    'pet':   {'name': '摸摸', 'joy': 5, 'bond': 0.5, 'food': 0, 'cd': 180},
+    'play':  {'name': '玩耍', 'joy': 15, 'bond': 1, 'food': -5, 'cd': 600, 'need_food': 10},
+    'trick': {'name': '表演', 'joy': 3, 'bond': 0, 'food': 0, 'cd': 30, 'need_bond': 50},
+}
+
+
+def taste(sp, food):
+    s = SPECIES[sp]
+    if s.get('love') == '*':
+        return 'like'
+    if food == s.get('love'):
+        return 'love'
+    if food == s.get('hate'):
+        return 'hate'
+    return 'ok'
+
+
+def assist_mult(bond):
+    return 1 + CARE['assist'] * max(0, min(100, bond)) / 100.0
+
+
+def link_ratio(bond):
+    k = max(0, min(100, bond)) / 100.0
+    return CARE['link_max'] - (CARE['link_max'] - CARE['link_min']) * k
+
+
+def disobey_chance(joy, bond):
+    for lim, ch in CARE['disobey']:
+        if joy < lim:
+            return ch * (1 - max(0, min(100, bond)) / 200.0)
+    return 0.0
+
+
+def sync_gain(base, bond):
+    return base * (0.5 + max(0, min(100, bond)) / 100.0)
+
+
+# ============================================================
+#  美術:圖片在遊戲中的顯示大小 (256×256 畫布在畫面上的邊長,px) 與浮空高度
+#  圖片放在 public/assets/pets/<種族>.png,規格見 docs/art/美術規格.md
+# ============================================================
+#  2026-10-10 實測:原本 (噗噗 48) 跟人物比起來太大,全部縮小約 30%,噗噗約等於程式繪圖的大小
+ART = {
+    'poring': {'size': 34}, 'slime': {'size': 36}, 'imp': {'size': 40, 'hover': 6}, 'goblin': {'size': 46},
+    'wolf': {'size': 60}, 'skeleton': {'size': 52}, 'dove': {'size': 44, 'hover': 12}, 'fox': {'size': 60},
+    'bat': {'size': 44, 'hover': 14}, 'griffin': {'size': 78}, 'drake': {'size': 68}, 'dragon': {'size': 160},
+    'npc': {'size': 56},
+}
+ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.png …
 
 # ============================================================
 #  孵蛋

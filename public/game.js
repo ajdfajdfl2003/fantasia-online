@@ -11,10 +11,11 @@ const S = {
   ents: new Map(), npcs: [], battles: new Map(), uidx: new Map(), followers: new Map(),
   species: {}, classes: {}, pskills: {}, items: {}, elements: {}, statusNames: {}, weatherNames: {},
   hatchTime: 60, hatchWarmup: 20, petMax: 5,
-  me: null, inv: [], gold: 0, pets: [], act: 0, hatch: null,
+  foods: [], tasteNames: {}, care: {}, art: {}, interact: {},
+  me: null, inv: [], gold: 0, pets: [], act: 0, hatch: null, bank: [], bankMax: 20,
   myBattle: 0, target: 0, allyTarget: 0, auto: false,
   ox: 0, oy: 0, mouse: { x: -1, y: -1, in: false }, hover: null, keys: {}, dir: [0, 0],
-  floats: [], projs: [], impacts: [], beams: [], marks: [], dying: [], banners: [], hitDelay: {},
+  floats: [], projs: [], impacts: [], beams: [], marks: [], dying: [], banners: [], hitDelay: {}, parts: [], leaving: [],
   trans: null, shakeUntil: 0, camX: null, camY: null,
 };
 
@@ -80,6 +81,8 @@ function onMsg(m) {
     case 'hatch': onHatch(m); break;
     case 'hatched': S.hatch = null; UI.hatched(m.pet); sfx('lvl'); break;
     case 'petsell': UI.openPets(true); break;
+    case 'bank': S.bank = m.bank; S.bankMax = m.max; UI.bank(); break;
+    case 'bankui': UI.openBank(); break;
     case 'bend': onBattleEnd(m); break;
   }
 }
@@ -95,9 +98,12 @@ function startGame(m) {
   S.vars = Uint8Array.from({ length: S.W * S.H }, (_, i) => (hash2(i % S.W, (i / S.W) | 0) * 4) | 0);
   Object.assign(S, { npcs: m.npcs, species: m.species, classes: m.classes, pskills: m.pskills, items: m.items,
     elements: m.elements, statusNames: m.statusNames, weatherNames: m.weather,
-    hatchTime: m.hatchTime, hatchWarmup: m.hatchWarmup, petMax: m.petMax });
+    hatchTime: m.hatchTime, hatchWarmup: m.hatchWarmup, petMax: m.petMax,
+    foods: m.foods || [], tasteNames: m.tasteNames || {}, care: m.care || {}, art: m.art || {}, interact: m.interact || {} });
   cv = $('#view'); ctx = cv.getContext('2d'); mm = $('#minimap'); mmc = mm.getContext('2d');
   paintTrees(); buildMinimap();
+  ART.onload = () => UI.artChanged();
+  loadArt(m.art);
   UI.enterGame(m);
   bindInput(); resize();
   addEventListener('resize', resize);
@@ -226,15 +232,24 @@ function onHatch(m) {
 function unitPos(rb, u) {
   if (u.s === 0) {
     const n = Math.max(1, rb.np || 1), y = rb.y + (u.r - (n - 1) / 2) * 1.75;
-    return u.k === 'o' ? [rb.x - 3.1, y] : [rb.x - 1.2, y];
+    if (u.k === 'o') return [rb.x - 3.1, y];
+    return (u.st || []).includes('protect') ? [rb.x - 2.0, y + 0.3] : [rb.x - 1.2, y];   // 護主:退到主人斜前方
   }
   if (u.boss) return [rb.x + 2.5, rb.y + 0.5];
   const m = (rb.maxRow || 0) + 1;
   return [rb.x + 1.3 + (u.r % 2) * 1.1, rb.y + (u.r - (m - 1) / 2) * 1.05];
 }
-function unitH(u) { return u.k === 'o' ? 50 : (CREATURE_H[u.c] || 40); }
+function unitH(u) { return u.k === 'o' ? 50 : creatureH(u.c); }
+// 站位改變時 (護主、有人加入戰鬥換排) 滑過去,不要瞬間移動
+function unitSlidePos(u, t) {
+  const [x, y] = unitPos(u.b, u);
+  if (u.slX === undefined || t < u.slT || Math.abs(x - u.slX) + Math.abs(y - u.slY) > 4) { u.slX = x; u.slY = y; u.slT = t; return [x, y]; }
+  const k = 1 - Math.exp(-(t - u.slT) / 110);
+  u.slX += (x - u.slX) * k; u.slY += (y - u.slY) * k; u.slT = t;
+  return [u.slX, u.slY];
+}
 function unitDrawPos(u, t) {
-  let [x, y] = unitPos(u.b, u);
+  let [x, y] = unitSlidePos(u, t);
   if (u.lunge) {
     const k = (t - u.lunge.t0) / 360;
     if (k >= 1) u.lunge = null;
@@ -267,7 +282,151 @@ function handleFx(f, t) {
       if (e) S.floats.push({ x: e.rx, y: e.ry - 1.2, text: f.big ? '完全恢復!' : '+' + f.v, col: f.mp ? '#7ab8ff' : '#7cff7c', size: 15, t0: t, dur: 1100, font: f.big ? FONT : null });
       if (f.id === S.myId) sfx('heal');
       break;
+    case 'pact': petReaction(f, t); break;
   }
+}
+
+// ============================================================
+//  寵物的互動反應 (摸摸、餵食、玩耍、表演、想你、離家出走)
+// ============================================================
+const PET_ANIM_DUR = { hop: 800, munch: 1200, no: 700, play: 2200, bounce: 1500, squash: 1300, spin: 1200, howl: 1600,
+  shake: 1300, fire: 1700, circle: 2000, flip: 1700, jump: 1400, miss: 2000 };
+function petAnim(f, kind, t) { f.anim = { k: kind, t0: t, dur: PET_ANIM_DUR[kind] || 1000 }; }
+// 跟隨距離 (格):主人半個身體 (12px) + 寵物半個身體 + 8px 間隔
+function followGap(sp) { return Math.max(0.85, (12 + creatureW(sp) / 2 + 8) / TILE); }
+// 互動動畫的變形,程式繪圖和圖片都能套用:
+// dx / gy 是在地上移動 (影子跟著走、gy 也決定前後遮擋),dy 是往上跳 (影子留在地上),
+// sx / sy 縮放、rot 旋轉、face 動畫中暫時改變的朝向
+function animXform(a, t, f) {
+  const o = { dx: 0, dy: 0, gy: 0, sx: 1, sy: 1, rot: 0, face: 0 };
+  if (!a) return o;
+  const k = (t - a.t0) / a.dur;
+  if (k < 0 || k >= 1) return o;
+  const s1 = Math.sin(k * Math.PI), TAU = Math.PI * 2, face = (f && f.face) || 1, R = f ? followGap(f.sp) * TILE : 30;
+  switch (a.k) {
+    case 'hop': o.dy = -Math.abs(Math.sin(k * Math.PI * 2)) * 8; break;
+    case 'miss':   // 撲向主人蹭一蹭,再回到身後
+      o.dx = face * Math.min(1, s1 * 2.2) * R * 0.45; o.dy = -Math.abs(Math.sin(k * Math.PI * 4)) * 10; break;
+    case 'munch': { const m = Math.sin(t / 55) * 0.08 * s1; o.sy = 1 - m; o.sx = 1 + m; break; }
+    case 'no': o.dx = Math.sin(t / 22) * 2.5 * s1; break;
+    case 'play': {   // 繞著主人跑一圈:先從主人身後繞過去,再從前面跑回來,一路蹦蹦跳跳
+      const ang = Math.PI + k * TAU;
+      o.dx = face * R * (1 + Math.cos(ang)); o.gy = Math.sin(ang) * R * 0.4;
+      o.dy = -Math.abs(Math.sin(k * Math.PI * 7)) * 5;
+      o.face = Math.sin(ang) < 0 ? face : -face;
+      break;
+    }
+    case 'bounce': { const h = Math.abs(Math.sin(k * Math.PI * 3)); o.dy = -h * 18; o.sy = 1 + (h < 0.2 ? -0.18 : 0.08); o.sx = 2 - o.sy; break; }
+    case 'squash': { const q = Math.sin(k * TAU) ** 2; o.sy = 1 - 0.45 * q; o.sx = 1 + 0.35 * q; break; }
+    case 'spin': { const c = Math.cos(k * TAU * 2); o.sx = (c < 0 ? -1 : 1) * Math.max(0.15, Math.abs(c)); break; }   // 轉身的瞬間留一條,不會整隻消失
+    case 'howl': o.sy = 1 + 0.12 * s1; o.rot = -0.3 * s1; o.dy = -3 * s1; break;
+    case 'shake': o.dx = Math.sin(t / 16) * 3 * s1; o.rot = Math.sin(t / 28) * 0.15 * s1; break;
+    case 'fire': o.dy = -6 * s1; break;
+    case 'circle': o.dx = Math.sin(k * TAU) * 28; o.dy = -(1 - Math.cos(k * TAU)) * 8 - s1 * 10; break;
+    case 'flip': o.rot = Math.PI * Math.min(1, s1 * 1.6); o.dy = -10 * s1; break;
+    case 'jump': o.dy = -s1 * 44; o.sy = 1 + 0.1 * s1; o.sx = 1 - 0.06 * s1; break;
+  }
+  return o;
+}
+// 小圖示粒子 (愛心、音符、青筋、食物、火焰),跟著寵物移動
+function burst(kind, n, t, o = {}) {
+  for (let i = 0; i < n; i++) {
+    S.parts.push({ pid: o.pid, uid: o.uid, kind, t0: t + i * (o.gap ?? 120), dur: o.dur || 1000,
+      ox: (o.ox || 0) + (Math.random() - 0.5) * (o.spread ?? 18), oy: -4, vx: (Math.random() - 0.5) * 10, vy: -(o.rise || 26), ring: o.ring ? i / n : null });
+  }
+}
+function followerFloat(pid, text, col, t, size = 13) {
+  S.floats.push({ fid: pid, text, col, size, t0: t, dur: 1300, font: FONT });
+}
+function petReaction(f, t) {
+  const pid = f.id, fo = S.followers.get(pid);
+  if (f.a === 'runaway') {   // 寵物跑走:畫一個往外跑、慢慢消失的分身
+    if (fo) S.leaving.push({ sp: fo.sp, x: fo.x, y: fo.y, dir: fo.face > 0 ? -1 : 1, t0: t });
+    if (pid === S.myId) sfx('fail');
+    return;
+  }
+  if (!f.act || !fo) return;   // 不是跟在身邊的那隻:不在地圖上演出
+  const mine = pid === S.myId, sp = S.species[fo.sp] || {};
+  const P = { pid };
+  switch (f.a) {
+    case 'feed':
+      if (f.r === 'full') { petAnim(fo, 'no', t); followerFloat(pid, '吃不下了…', '#d0d8ff', t); break; }
+      if (f.r === 'hate') { petAnim(fo, 'no', t); burst('anger', 1, t, { ...P, ox: 24, spread: 0, rise: 8 }); followerFloat(pid, '呸!', '#ff8a7a', t); if (mine) sfx('fail'); break; }
+      petAnim(fo, 'munch', t);
+      burst('food:' + f.f, 1, t, { ...P, rise: 6, dur: 900, spread: 0 });
+      if (f.r === 'love') { burst('heart', 4, t + 300, P); followerFloat(pid, '好好吃!', '#ffb0d0', t + 300); }
+      else if (f.r === 'like') burst('note', 2, t + 300, P);
+      if (mine) sfx(f.r === 'love' ? 'capture' : 'pick');
+      break;
+    case 'pet':
+      if (f.r === 'cd') { petAnim(fo, 'no', t); followerFloat(pid, '…', '#d0d8ff', t); break; }
+      petAnim(fo, 'hop', t); burst('heart', 3, t, P); if (mine) sfx('heal');
+      break;
+    case 'play':
+      if (f.r === 'cd') { followerFloat(pid, '累了…', '#d0d8ff', t); break; }
+      petAnim(fo, 'play', t); burst('note', 4, t, { ...P, gap: 400 }); if (mine) sfx('lvl');
+      break;
+    case 'trick': {
+      const [name, kind, say] = sp.trick || ['', 'bounce', ''];
+      petAnim(fo, kind, t);
+      followerFloat(pid, say || name, '#fff6a0', t + 200, 14);
+      if (kind === 'fire') burst('flame', 10, t, { ...P, ring: true, dur: PET_ANIM_DUR.fire, gap: 0 });
+      if (mine) sfx('skill');
+      break;
+    }
+    case 'miss':
+      petAnim(fo, 'miss', t); burst('heart', 6, t, { ...P, gap: 250 }); followerFloat(pid, '想你了!', '#ffb0d0', t, 15);
+      break;
+  }
+}
+function drawParts(t) {
+  S.parts = S.parts.filter(p => t < p.t0 + p.dur);
+  for (const p of S.parts) {
+    if (t < p.t0) continue;
+    let fx, fy, h;
+    if (p.uid) { const u = S.uidx.get(p.uid); if (!u) continue; [fx, fy] = unitDrawPos(u, t); h = unitH(u); }
+    else {   // 跟著跟隨寵物 (包含繞圈、撲過去時的位置)
+      const fo = S.followers.get(p.pid); if (!fo) continue;
+      const a = animXform(fo.anim, t, fo);
+      fx = fo.x + a.dx / TILE; fy = fo.y + a.gy / TILE; h = creatureH(fo.sp);
+    }
+    const k = (t - p.t0) / p.dur, X = fx * TILE + S.ox, Y = fy * TILE + S.oy + 8;
+    let x, y;
+    if (p.ring !== null) { const a = (p.ring + k * 1.5) * Math.PI * 2; x = X + Math.cos(a) * 26; y = Y - h * 0.45 + Math.sin(a) * 9; }
+    else { x = X + p.ox + p.vx * k; y = Y - h - 6 + p.oy + p.vy * k; }
+    ctx.save();
+    ctx.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+    if (p.kind.startsWith('food:')) { const id = p.kind.slice(5); ctx.drawImage(iconC(id, S.items[id]), x - 10, y - 10, 20, 20); }
+    else drawMoodIcon(ctx, p.kind, x, y, t);
+    ctx.restore();
+  }
+  // 離家出走:往外跑、慢慢消失
+  S.leaving = S.leaving.filter(l => t - l.t0 < 1400);
+  for (const l of S.leaving) {
+    const k = (t - l.t0) / 1400, x = (l.x + l.dir * k * 5) * TILE + S.ox, y = l.y * TILE + S.oy + 8 - Math.abs(Math.sin(k * Math.PI * 8)) * 4;
+    ctx.save(); ctx.globalAlpha = 1 - k;
+    drawCreature(ctx, l.sp, x, y, { face: l.dir, walk: true, t, id: 7 });
+    drawMoodIcon(ctx, 'anger', x + 10, y - creatureH(l.sp) - 6, t);
+    ctx.restore();
+  }
+}
+// 睡著的動作圖比主圖寬 (趴下來) 時,往後挪半個多出來的寬度,才不會壓到主人
+function sleepShift(f) {
+  if (f.mood !== 'sleepy' || f.anim) return 0;
+  return -(f.face || 1) * Math.max(0, creatureW(f.sp, 'sleep') - creatureW(f.sp)) / 2;
+}
+function drawFollower(f, x, y, t, pid) {
+  const a = animXform(f.anim, t, f);
+  const h = creatureH(f.sp), face = a.face || f.face || 1;
+  x += a.dx + sleepShift(f); y += a.gy;
+  ctx.save();
+  if (f.anim) { creatureShadow(ctx, f.sp, x, y); NO_SHADOW = true; }   // 影子留在地上,身體才跳起來、翻轉
+  ctx.translate(x, y + a.dy);
+  if (a.rot) { ctx.translate(0, -h / 2); ctx.rotate(a.rot * face); ctx.translate(0, h / 2); }
+  if (a.sx !== 1 || a.sy !== 1) ctx.scale(a.sx, a.sy);
+  drawCreature(ctx, f.sp, 0, 0, { face, walk: f.walk && !f.anim, t, id: pid, sleep: f.mood === 'sleepy' });
+  NO_SHADOW = false;
+  ctx.restore();
 }
 
 function battleFx(f, t) {
@@ -304,7 +463,7 @@ function battleFx(f, t) {
         if (SINGLE_IMPACT[f.w]) S.impacts.push({ uid: tg.i, kind: SINGLE_IMPACT[f.w], t0: t + dur, dur: 320 });
         S.hitDelay[a.i] = t + dur;
       } else if (f.w === 'roar') S.shakeUntil = t + 700;
-      else if (f.w === 'guard') S.impacts.push({ uid: a.i, kind: 'shield', t0: t, dur: 500 });
+      else if (f.w === 'guard' || f.w === 'protect') S.impacts.push({ uid: a.i, kind: 'shield', t0: t, dur: f.w === 'protect' ? 900 : 500 });
       if (mine && (f.ty === 'mag' || f.ty === 'owner')) sfx('skill');
       break;
     }
@@ -333,7 +492,7 @@ function battleFx(f, t) {
     }
     case 'st': {
       const u = U(f.id);
-      if (!u) break;
+      if (!u || f.st === 'protect') break;   // 護主:已經有「挺身護主!」和護盾演出了
       const name = S.statusNames[f.st] || f.st;
       S.floats.push({ uid: u.i, text: f.ok ? (f.st === 'sleep' ? '睡著了 Zzz' : name) : '無效', col: f.ok ? (/down|slow|sleep|poison/.test(f.st) ? '#d0a0ff' : '#ffe080') : '#aaaaaa', size: 13, t0: t + 150, dur: 1000, font: FONT, head: -0.1 });
       if (f.ok) S.impacts.push({ uid: u.i, kind: /down|slow|sleep|poison/.test(f.st) ? 'debuff' : f.st === 'shield' ? 'shield' : 'buff', t0: t + 100, dur: 700 });
@@ -367,6 +526,23 @@ function battleFx(f, t) {
       if (rb && f.w) S.banners.push({ text: S.weatherNames[f.w] + '!', sub: f.w === 'sun' ? '火、光屬性增強' : '水、風屬性增強', col: f.w === 'sun' ? '#ffcc40' : '#80c0ff', t0: t, dur: 1600, small: true, b: f.b });
       break;
     case 'join': { const u = U(f.id); if (u) S.impacts.push({ uid: u.i, kind: 'revive', t0: t, dur: 600 }); break; }
+    case 'assist': {   // 助攻:心意相通
+      const u = U(f.id);
+      if (!u) break;
+      S.impacts.push({ uid: u.i, kind: 'revive', t0: t, dur: 900 });
+      S.floats.push({ uid: u.i, text: '心意相通!', col: '#ffd84a', size: 17, t0: t, dur: 1400, font: FONT, head: 0.5 });
+      burst('heart', 3, t, { uid: u.i });
+      if (mine) sfx('lvl');
+      break;
+    }
+    case 'boost': { const u = U(f.id); if (u) S.floats.push({ uid: u.i, text: `助攻 +${f.v}%`, col: '#ffcf70', size: 12, t0: t + 250, dur: 1100, font: FONT, head: -0.45 }); break; }
+    case 'disobey': {
+      const u = U(f.id);
+      if (!u) break;
+      S.floats.push({ uid: u.i, text: '不聽指令!', col: '#ff8a7a', size: 13, t0: t, dur: 1200, font: FONT, head: 0.85 });
+      burst('anger', 1, t, { uid: u.i, rise: 8 });
+      break;
+    }
   }
 }
 
@@ -387,11 +563,15 @@ function frame(t) {
 }
 
 function updateFollowers(dt) {
+  const now = performance.now();
   for (const e of S.ents.values()) {
     if (e.k !== 'p' || !e.pt || e.b) { S.followers.delete(e.i); continue; }
     let f = S.followers.get(e.i);
-    const tx = e.rx - (e.f || 1) * 0.85, ty = e.ry - 0.1;
+    const gap = followGap(e.pt);   // 跟在主人身後
+    const tx = e.rx - (e.f || 1) * gap, ty = e.ry - 0.1;
     if (!f || f.sp !== e.pt) { f = { x: tx, y: ty, sp: e.pt, face: e.f || 1, walk: false }; S.followers.set(e.i, f); }
+    f.mood = e.pm || '';
+    if (f.anim && now > f.anim.t0 + f.anim.dur) f.anim = null;
     const d = Math.hypot(tx - f.x, ty - f.y);
     if (d > 0.05) {
       const sp = Math.min(d, (d > 1.5 ? 7 : 4.4) * dt);
@@ -443,18 +623,22 @@ function render(t) {
   for (const rb of S.battles.values()) drawBattleGround(rb, t);
 
   for (const e of S.ents.values()) if (!(e.k === 'p' && e.b)) sprites.push({ y: e.ry + 0.3, e });
-  for (const [pid, f] of S.followers) sprites.push({ y: f.y + 0.3, f, pid });
+  for (const [pid, f] of S.followers) sprites.push({ y: f.y + 0.3 + animXform(f.anim, t, f).gy / TILE, f, pid });
   for (const n of S.npcs) sprites.push({ y: n.y + 0.3, n });
   sprites.sort((a, b) => a.y - b.y);
   for (const s of sprites) {
     if (s.img) ctx.drawImage(s.img, s.sx, s.sy);
     else if (s.e) drawEntity(s.e, t);
-    else if (s.f) drawCreature(ctx, s.f.sp, s.f.x * TILE + ox, s.f.y * TILE + oy + 8, { face: s.f.face, walk: s.f.walk, t, id: s.pid });
-    else drawHumanoid(ctx, s.n.x * TILE + ox, s.n.y * TILE + oy + 8, { ...NPC_LOOK[s.n.c], face: me && me.rx < s.n.x ? -1 : 1 }, t);
+    else if (s.f) drawFollower(s.f, s.f.x * TILE + ox, s.f.y * TILE + oy + 8, t, s.pid);
+    else {
+      const nx = s.n.x * TILE + ox, ny = s.n.y * TILE + oy + 8, nf = me && me.rx < s.n.x ? -1 : 1;
+      if (!drawNpcArt(ctx, s.n.c, nx, ny, nf, t)) drawHumanoid(ctx, nx, ny, { ...NPC_LOOK[s.n.c], face: nf }, t);
+    }
   }
   for (const rb of S.battles.values()) drawBattleUnits(rb, t);
   drawDying(t);
   drawEffects(t);
+  drawParts(t);
   drawLabels(t);
   for (const rb of S.battles.values()) drawBattleHUD(rb, t);
   drawFloats(t);
@@ -542,8 +726,16 @@ function drawBattleUnits(rb, t) {
       if (u.ko) drawGrave(ctx, x, y);
       else drawHumanoid(ctx, x, y, { ...lookOwner(u.c, u.n), face: 1, atk: sw }, t);
     } else {
-      drawCreature(ctx, u.c, x, y, { face: u.s === 0 ? 1 : -1, t, atk: sw, id: u.i, ko: u.ko });
+      if (u.sg && !u.ko) {   // 助攻發動中:金色光暈
+        const r = 26 + Math.sin(t / 90) * 3, gr = ctx.createRadialGradient(x, y - unitH(u) * 0.45, 4, x, y - unitH(u) * 0.45, r);
+        gr.addColorStop(0, 'rgba(255,240,150,.55)'); gr.addColorStop(1, 'rgba(255,200,60,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y - unitH(u) * 0.45, r, 0, 7); ctx.fill();
+      }
+      const jit = u.md === 'scared' && !u.ko ? Math.sin(t / 28) * 1.5 : 0;
+      drawCreature(ctx, u.c, x + jit, y, { face: u.s === 0 ? 1 : -1, t, atk: sw, id: u.i, ko: u.ko, hurt: flash,
+        sleep: !!(u.st && u.st.includes('sleep')) });
       if (u.st && u.st.includes('sleep') && !u.ko) drawZzz(x, y - unitH(u), t);
+      else if (u.md && !u.ko) drawMoodBubble(ctx, u.md, x + creatureW(u.c) / 2 + 12, y - unitH(u) * 0.5, t);   // 在臉的前面,不擋血條
     }
     ctx.globalAlpha = 1;
   }
@@ -759,6 +951,11 @@ function drawFloats(t) {
       else if (f.last || f.fixed) [wx, wy] = f.last || f.fixed;
       else continue;
       wy -= (f.head || 0) + 0.2; wx += f.dx || 0;
+    } else if (f.fid) {   // 跟著地圖上的跟隨寵物
+      const fo = S.followers.get(f.fid);
+      if (fo) { wx = fo.x; wy = fo.y + 0.25 - creatureH(fo.sp) / TILE - 0.3; f.last = [wx, wy]; }
+      else if (f.last) [wx, wy] = f.last;
+      else continue;
     } else { wx = f.x; wy = f.y; }
     const k = (t - f.t0) / f.dur;
     const x = wx * TILE + S.ox, y = wy * TILE + S.oy - k * 34 - (f.crit && k < 0.15 ? (0.15 - k) * 60 : 0);
@@ -816,6 +1013,18 @@ function drawLabels(t) {
     const b = Math.round(Math.sin(t / 250) * 3);
     ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 66 + b, 7, 13);
     ctx.fillStyle = '#ffd84a'; ctx.fillRect(x - 2, y - 65 + b, 5, 7); ctx.fillRect(x - 2, y - 56 + b, 5, 3);
+  }
+  // 跟隨寵物的心情泡泡 (每 8 秒冒 3 秒,打瞌睡一直冒)
+  for (const [pid, f] of S.followers) {
+    const x = f.x * TILE + S.ox, y = f.y * TILE + S.oy + 8;
+    if (S.hover && S.hover.k === 'f' && pid === S.myId) {
+      const e = S.ents.get(pid);
+      text(`${e ? e.pn : ''}(點擊互動)`, x, y + 12, '#a8ffb8', 11);
+    }
+    if (!f.mood || f.anim) continue;
+    const ph = ((t + pid * 977) / 1000) % 8;
+    if (f.mood !== 'sleepy' && ph > 3) continue;
+    drawMoodBubble(ctx, f.mood, x + 8 + sleepShift(f), y - creatureH(f.sp) - 4, t);
   }
   for (const e of S.ents.values()) {
     const [x, y] = feet(e);
@@ -894,6 +1103,8 @@ function pick(wx, wy) {
     }
   }
   if (S.myBattle) return best;
+  const mf = S.followers.get(S.myId);   // 自己的寵物:點了可以互動
+  if (mf) test({ k: 'f', i: S.myId }, mf.x, mf.y + 0.25, 0.6, creatureH(mf.sp) / TILE + 0.15, 0.35);
   for (const e of S.ents.values()) {
     if (e.i === S.myId || (e.k === 'p' && e.b)) continue;
     if (e.k === 'm') test({ k: 'boss', i: e.i }, e.rx, e.ry + 0.25, 1.7, 3.4, 0.4);
@@ -928,7 +1139,7 @@ function updateHover() {
   let k = 'normal';
   if (h) {
     if (h.k === 'u') k = h.u.s === 1 ? 'atk' : h.u.k === 'p' && S.myBattle ? 'ally' : 'normal';
-    else k = { boss: 'atk', n: 'talk', circle: 'join' }[h.k] || 'normal';
+    else k = { boss: 'atk', n: 'talk', circle: 'join', f: 'ally' }[h.k] || 'normal';
   }
   if (cv.dataset.cur !== k) { cv.dataset.cur = k; cv.style.cursor = CURSORS[k]; }
 }
@@ -953,6 +1164,7 @@ function ownerCmd(a, extra = {}) {
   const tg = a === 'cap' ? S.target : (S.allyTarget || (p && p.i));
   send({ t: 'bcmd', u: 'o', a, tg, ...extra });
 }
+function assistCmd() { send({ t: 'bcmd', u: 'o', a: 'assist' }); }
 function toggleAuto(v) {
   S.auto = v === undefined ? !S.auto : v;
   send({ t: 'bauto', on: S.auto });
@@ -976,7 +1188,8 @@ function bindInput() {
       }
       return;
     }
-    if (h && h.k === 'n') send({ t: 'npc', id: h.i });
+    if (h && h.k === 'f') UI.petMenu(e.clientX, e.clientY);
+    else if (h && h.k === 'n') send({ t: 'npc', id: h.i });
     else if (h && h.k === 'boss') send({ t: 'boss' });
     else if (h && (h.k === 'circle' || h.k === 'u')) send({ t: 'bjoin', b: h.k === 'circle' ? h.i : h.u.b.i });
     else {
@@ -1016,6 +1229,7 @@ function bindInput() {
       else if (k === 'c') ownerCmd('cap');
       else if (k === 'x') UI.swapMenu();
       else if (k === 'f') ownerCmd('flee');
+      else if (k === 't') assistCmd();
       else if (k === 'tab') cycleTarget();
       else if (k === ' ') toggleAuto();
       else if (k === 'escape') UI.closeMenus();

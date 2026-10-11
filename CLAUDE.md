@@ -6,6 +6,8 @@
 ## 開發流程(使用者訂的守則,每次都要遵守)
 
 1. **git**:所有變更都進版本控制。每完成 plan 裡的一個任務就 commit 一次,訊息用繁體中文、說清楚做了什麼。
+   **在 feature 分支開發**(例如 `feature/phase-2-pet-life`),不要直接 commit 到 main;
+   無頭測試與瀏覽器實測都確定沒問題、使用者也確認後,才 merge 回 main(`git merge --no-ff`)。
 2. **分階段**:所有功能依階段分類,總覽在 `docs/roadmap.md`。一次只做一個階段。
 3. **spec → plan**:每個階段開工前,先寫 `docs/phase-N/spec.md`(要做什麼、為什麼、規則細節),
    再寫 `docs/phase-N/plan.md`(拆成可勾選的任務)。實作時照 plan 走,完成就打勾。
