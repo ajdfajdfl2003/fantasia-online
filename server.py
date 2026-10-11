@@ -24,11 +24,12 @@ import time
 import traceback
 from urllib.parse import parse_qs, unquote
 
-from game_data import (ART, ART_FRAMES, BOSS, CARE, CLASSES, EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS,
-                       ENCOUNTER_RATE, FOODS, HATCH_HINTS, HATCH_TIME, HATCH_WARMUP, INTERACT, ITEMS, PET_SKILLS,
-                       ROAD_ENCOUNTER, SHOP_ITEMS, SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER,
-                       WILD_QUALITY_WEIGHTS, ZONES, assist_mult, derive, disobey_chance, elem_mult, exp_need,
-                       link_ratio, pet_skills, stars, sync_gain, taste)
+from game_data import (ART, ART_FRAMES, BOSS, BREED, BREED_HINTS, CARE, CLASSES, EGG_SHOP, ELEMENTS,
+                       ENCOUNTER_MIN_STEPS, ENCOUNTER_RATE, EVOLVE, EXCLUSIVE, FOODS, HATCH_HINTS, HATCH_TIME,
+                       HATCH_WARMUP, HYBRIDS, INTERACT, ITEMS, PET_SKILLS, ROAD_ENCOUNTER, SHOP_ITEMS, SKILL_TIERS,
+                       SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER, WILD_QUALITY_WEIGHTS, ZONES,
+                       assist_mult, derive, disobey_chance, elem_mult, exp_need, hatch_pref, inheritable, link_ratio,
+                       pet_skills, stars, sync_gain, taste)
 
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -240,12 +241,17 @@ def fix_pet(pt):
     return pt
 
 
+def skills_of(pt):
+    """寵物會的技能 (種族技能、專屬技能、遺傳技能)"""
+    return pet_skills(pt['sp'], pt['lv'], pt.get('inh'))
+
+
 def pet_view(pt):
     d = derive(pt['lv'], pt['st'])
     return {'uid': pt['uid'], 'sp': pt['sp'], 'n': pt['n'], 'lv': pt['lv'], 'exp': pt['exp'], 'nx': exp_need(pt['lv']),
             'q': pt['q'], 'star': stars(pt['q']), 'st': pt['st'], 'pts': pt['pts'], 'hp': pt['hp'], 'mp': pt['mp'],
             'mhp': d['mhp'], 'mmp': d['mmp'], 'atk': d['atk'], 'matk': d['matk'], 'def': d['def'], 'mdef': d['mdef'],
-            'spd': round(d['spd'], 1), 'skills': pet_skills(pt['sp'], pt['lv']),
+            'spd': round(d['spd'], 1), 'skills': skills_of(pt),
             'food': int(math.ceil(pt['food'])), 'joy': int(math.ceil(pt['joy'])), 'bond': int(pt['bond']),
             'sync': int(pt['sync']), 'sulk': int(pt.get('sulk', False))}
 
@@ -376,6 +382,7 @@ class Unit:
         self.skills, self.alive, self.row, self.q = [], True, 0, 0
         self.boss, self.acts, self.exp, self.gold = False, 0, 0, 0
         self.sync, self.surge = 0.0, False   # 默契量表、助攻發動後的下一招
+        self.stolen = False       # 被「順手牽羊」偷過金幣了
 
     def set_stats(self, d):
         self.mhp, self.mmp = d['mhp'], d['mmp']
@@ -1011,7 +1018,7 @@ class Game:
         up = False
         while pt['lv'] < 99 and pt['exp'] >= exp_need(pt['lv']):
             pt['exp'] -= exp_need(pt['lv'])
-            old = set(pet_skills(pt['sp'], pt['lv']))
+            old = set(skills_of(pt))
             pt['lv'] += 1
             pt['pts'] += SPECIES[pt['sp']]['grow']
             d = derive(pt['lv'], pt['st'])
@@ -1019,7 +1026,7 @@ class Game:
             self.add_joy(pt, CARE['levelup'][0])
             up = True
             self.sys(p, '%s 升到了 Lv.%d!獲得 %d 點能力點數。' % (pt['n'], pt['lv'], SPECIES[pt['sp']]['grow']))
-            for sk in set(pet_skills(pt['sp'], pt['lv'])) - old:
+            for sk in set(skills_of(pt)) - old:
                 self.sys(p, '%s 學會了新技能「%s」!' % (pt['n'], PET_SKILLS[sk]['name']))
         p.pets_dirty = True
         return up
@@ -1306,7 +1313,7 @@ class Game:
             k = CARE['hungry_mult']
             u.atk, u.matk, u.df, u.mdf = int(u.atk * k), int(u.matk * k), int(u.df * k), int(u.mdf * k)
         u.hp, u.mp = min(pt['hp'], u.mhp), min(pt['mp'], u.mmp)
-        u.skills = pet_skills(pt['sp'], pt['lv'])
+        u.skills = skills_of(pt)
         u.bar = random.uniform(35, 65)
         u.sync = pt['sync']
         return u
@@ -1637,33 +1644,55 @@ class Game:
         power = self.take_surge(u)
         if power == 1:
             u.mp -= s['mp']
-        side_foe = 1 - u.side
-        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt else 0, w=s['fx'], n=s['name'], ty=s['type'])
-        if s['type'] == 'heal':
-            self.heal_unit(b, tgt, (tgt.mhp * s['mult'] + u.matk * 0.5) * power)
-        elif s['type'] == 'status':
-            key, dur = s['status']
-            ok = random.random() < min(1.0, s.get('chance', 1.0) * power) and not tgt.boss
-            if ok:
-                tgt.status[key] = now + dur
-            self.bfx(b, 'st', id=tgt.id, st=key, ok=int(ok))
-        elif s['target'] == 'enemies':
-            for t in b.alive(side_foe):
-                self.hit(b, u, t, s['type'], s['mult'] * power, now, s.get('el'))
+        target = s['target']
+        single = target in ('enemy', 'ally')
+        self.bfx(b, 'act', s=u.id, t=tgt.id if tgt and single else 0, w=s['fx'], n=s['name'], ty=s['type'])
+        if target == 'allies':      # 我方全體寵物
+            targets = [x for x in b.alive(u.side) if x.kind == 'p']
+        elif target == 'enemies':   # 全體敵人
+            targets = b.alive(1 - u.side)
         else:
-            for _ in range(s.get('hits', 1)):
-                if not tgt.alive:
-                    break
-                d = self.hit(b, u, tgt, s['type'], s['mult'] * power, now, s.get('el'), s.get('pierce', False))
-                if s.get('drain') and d:
-                    self.heal_unit(b, u, d * s['drain'])
-            if s.get('status') and tgt.alive and random.random() < 0.6:
+            targets = [tgt] if tgt else []
+        for t in targets:
+            if s['type'] == 'heal':
+                self.heal_unit(b, t, (t.mhp * s['mult'] + u.matk * 0.5) * power)
+            elif s['type'] == 'status':
                 key, dur = s['status']
-                tgt.status[key] = now + dur
-                if key == 'poison':
-                    tgt.next_poison = now + 2
-                self.bfx(b, 'st', id=tgt.id, st=key, ok=1)
+                ok = random.random() < min(1.0, s.get('chance', 1.0) * power) and not t.boss
+                if ok:
+                    self.add_status(t, key, now, dur)
+                self.bfx(b, 'st', id=t.id, st=key, ok=int(ok))
+            else:
+                for _ in range(s.get('hits', 1)):
+                    if not t.alive:
+                        break
+                    d = self.hit(b, u, t, s['type'], s['mult'] * power, now, s.get('el'), s.get('pierce', False))
+                    if s.get('drain') and d:
+                        self.heal_unit(b, u, d * s['drain'])
+                    if s.get('steal') and d:
+                        self.steal(b, u, t, s['steal'])
+                if s.get('status') and t.alive and random.random() < s.get('chance', 0.6):
+                    key, dur = s['status']
+                    self.add_status(t, key, now, dur)
+                    self.bfx(b, 'st', id=t.id, st=key, ok=1)
         self.end_turn(u)
+
+    def add_status(self, t, key, now, dur):
+        t.status[key] = now + dur
+        if key == 'poison':   # 中毒 / 灼傷:2 秒後開始扣血
+            t.next_poison = now + 2
+
+    def steal(self, b, u, t, k):
+        """順手牽羊:打中野生寵物時偷到金幣 (每隻只能偷一次,BOSS 偷不到)"""
+        p = self.players.get(u.pid)
+        if p is None or t.boss or t.kind != 'm' or t.stolen:
+            return
+        t.stolen = True
+        g = t.lv * k
+        p.gold += g
+        p.inv_dirty = True
+        self.bfx(b, 'steal', id=t.id, v=g)
+        self.sys(p, '%s 從%s身上偷到了 %d 金幣!' % (u.name, t.name, g))
 
     def pick_foe(self, b, u):
         foes = b.alive(1 - u.side)
@@ -1743,6 +1772,8 @@ class Game:
                 if s['target'] == 'ally':
                     t = tg if tg and tg.alive and tg.side == 0 and tg.kind == 'p' else u
                     self.do_skill(b, u, sk, t, now)
+                elif s['target'] == 'allies':
+                    self.do_skill(b, u, sk, None, now)
                 elif foe:
                     self.do_skill(b, u, sk, foe, now)
             elif a == 'def':
@@ -2156,6 +2187,7 @@ class Game:
             v['md'] = self.battle_mood(b, u) if b else ''
             v['sy'] = int(u.sync) if u.pet['bond'] >= CARE['sync_bond'] else -1
             v['sg'] = int(u.surge)
+            v['sk'] = u.skills
         return v
 
     def send_snaps(self, now):
