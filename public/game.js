@@ -318,7 +318,7 @@ function animXform(a, t, f) {
     }
     case 'bounce': { const h = Math.abs(Math.sin(k * Math.PI * 3)); o.dy = -h * 18; o.sy = 1 + (h < 0.2 ? -0.18 : 0.08); o.sx = 2 - o.sy; break; }
     case 'squash': { const q = Math.sin(k * TAU) ** 2; o.sy = 1 - 0.45 * q; o.sx = 1 + 0.35 * q; break; }
-    case 'spin': o.sx = Math.cos(k * TAU * 2); break;
+    case 'spin': { const c = Math.cos(k * TAU * 2); o.sx = (c < 0 ? -1 : 1) * Math.max(0.15, Math.abs(c)); break; }   // 轉身的瞬間留一條,不會整隻消失
     case 'howl': o.sy = 1 + 0.12 * s1; o.rot = -0.3 * s1; o.dy = -3 * s1; break;
     case 'shake': o.dx = Math.sin(t / 16) * 3 * s1; o.rot = Math.sin(t / 28) * 0.15 * s1; break;
     case 'fire': o.dy = -6 * s1; break;

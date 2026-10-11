@@ -273,6 +273,17 @@ def pet_mood(pt, idle=0.0):
     return ''
 
 
+def live_cd(cd, now):
+    """互動冷卻:只留還沒結束的 (存檔與讀檔用)"""
+    out = {}
+    for uid, cds in (cd or {}).items() if isinstance(cd, dict) else ():
+        if isinstance(cds, dict):
+            left = {a: float(t) for a, t in cds.items() if isinstance(t, (int, float)) and t > now}
+            if left:
+                out[str(uid)] = left
+    return out
+
+
 # ============================================================
 #  玩家
 # ============================================================
@@ -305,7 +316,7 @@ class Player:
         self.enc_dist, self.steps = 0.0, ENCOUNTER_MIN_STEPS
         self.hatch = None
         self.last_chat = 0.0
-        self.cd = {}              # 寵物 uid → {互動動作: 冷卻結束時間}
+        self.cd = live_cd(rec.get('cd'), time.time())   # 寵物 uid → {互動動作: 冷卻結束時間} (會存檔,重新登入不會重置)
         self.sulk = {}            # 寵物 uid → 快樂值與飽食度都是 0 持續了幾秒
         self.idle_since = time.time()
         self.care_n = 0
@@ -344,7 +355,7 @@ class Player:
         r = dict(self.rec)
         r.update({'cls': self.cls, 'lv': self.lv, 'exp': self.exp, 'gold': self.gold, 'inv': self.inv,
                   'pets': self.pets, 'bank': self.bank, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
-                  'hp': self.hp, 'mp': self.mp, 'last': int(time.time())})
+                  'hp': self.hp, 'mp': self.mp, 'last': int(time.time()), 'cd': live_cd(self.cd, time.time())})
         r.pop('equip', None)
         return r
 

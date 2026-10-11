@@ -194,6 +194,14 @@ def test_interact(g):
     pt['bond'] = 50.0
     g.pet_interact(p, 0, 'trick', clock[0])
     check('親密度 50 可以表演,附近玩家看得到', fx_of(g, 'pact') and fx_of(g, 'pact')[-1]['a'] == 'trick')
+    g.pet_interact(p, 0, 'pet', clock[0])
+    j, uid = pt['joy'], pt['uid']
+    g.logout(p)
+    p = g.login(FakeWS(), {'name': 'C_int', 'pass': 'x'})
+    p.x, p.y = TOWN
+    pt = p.pets[0]
+    g.pet_interact(p, 0, 'pet', clock[0])
+    check('重新登入不會重置互動冷卻 (不能靠重登刷親密度)', pt['uid'] == uid and pt['joy'] == j)
     b = controlled_battle(g, p)
     j = pt['joy']
     clock[0] += 999
