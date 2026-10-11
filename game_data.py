@@ -247,6 +247,8 @@ CARE = {
     'start_new': (80, 70, 20), 'start_hatch': (70, 80, 30), 'start_wild': (50, 40, (0, 10)), 'start_old': (80, 70, 15),
     'hungry': 30,              # 低於這個值 = 肚子餓
     'full': 90,                # 這個值以上吃不下
+    'angry': 30,               # 快樂值低於這個值 = 鬧脾氣 (冒 💢 泡泡)
+    'love_joy': 80, 'love_bond': 60,   # 春心蕩漾 ♥ 泡泡:快樂值、親密度都到這個值 (階段 3 接到發情)
     'hungry_mult': 0.9,        # 肚子餓時,戰鬥的攻擊/魔攻/防禦/魔防倍率
     'food_active': 15.0,       # 出戰寵物每小時消耗
     'food_other': 7.5,         # 身上其他寵物每小時消耗
@@ -268,7 +270,7 @@ CARE = {
     'link_max': 0.15, 'link_min': 0.05,
     'guard_bond': 60, 'guard_enter': 0.30, 'guard_leave': 0.50, 'guard_def': 1.3,
     # 離家出走:快樂值與飽食度都是 0 持續幾秒 (只算線上、戰鬥外)
-    'sulk_warn': 300, 'sulk_leave': 600, 'sulk_bond': -10, 'sulk_food': 30,
+    'sulk_warn': 300, 'sulk_leave': 600, 'sulk_bond': -10, 'sulk_food': 40,
     'miss_you': 86400,         # 離線超過幾秒,上線時寵物會說想你
     'sleepy_idle': 20,         # 主人幾秒沒動,寵物開始打瞌睡
     'food_drop': 0.25,         # 野生寵物掉落最愛食物的機率

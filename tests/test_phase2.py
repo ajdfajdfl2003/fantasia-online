@@ -493,7 +493,8 @@ def test_sulk(g):
     a['food'], a['joy'] = 0.0, 0.0
     run(g, 320)
     check('持續 10 分鐘 → 跑去寵物旅館', a not in p.pets and a in p.bank and a['sulk'])
-    check('出走時親密度 −10、旅館餵到 30', near(a['bond'], 20, 1e-6) and a['food'] >= 30, (a['bond'], a['food']))
+    check('出走時親密度 −10、旅館餵到 %d (不會一領回就肚子餓)' % CARE['sulk_food'],
+          near(a['bond'], 20, 1e-6) and a['food'] >= CARE['sulk_food'] > CARE['hungry'], (a['bond'], a['food']))
     check('出戰寵物索引修正', p.active == 0 and p.pets[0]['sp'] == 'wolf')
     # 旅館滿了也收、最後一隻也可能出走
     for _ in range(20):
@@ -509,8 +510,16 @@ def test_sulk(g):
     check('身上沒有寵物:不會遇敵、不會出錯', p.battle is None and p.ws.last('snap') is not None)
     p.x, p.y = KEEPER
     i = p.bank.index(a)
+    p.ws.chats.clear()
     g.bank_get(p, i)
     check('到旅館帶回賭氣的寵物', a in p.pets and not a['sulk'])
+    check('還在鬧脾氣:蘿絲提醒要多陪牠 (不說「不生氣了」)', a['joy'] < CARE['angry'] and any('還在生悶氣' in c for c in p.ws.chats))
+    p.remove_pet(p.pets.index(a))   # 再賭氣一次,這次在旅館住到心情變好
+    p.bank.append(a)
+    a['sulk'], a['joy'] = True, 50.0
+    p.ws.chats.clear()
+    g.bank_get(p, p.bank.index(a))
+    check('旅館住到心情變好:蘿絲說牠不生氣了', any('不生氣了' in c for c in p.ws.chats))
 
 
 def test_moods(g):

@@ -264,11 +264,11 @@ def pet_mood(pt, idle=0.0):
         return 'starve'
     if pt['food'] < CARE['hungry']:
         return 'hungry'
-    if pt['joy'] < 30:
+    if pt['joy'] < CARE['angry']:
         return 'angry'
     if idle >= CARE['sleepy_idle']:
         return 'sleepy'
-    if pt['joy'] >= 80 and pt['bond'] >= 60:
+    if pt['joy'] >= CARE['love_joy'] and pt['bond'] >= CARE['love_bond']:
         return 'love'
     return ''
 
@@ -977,7 +977,10 @@ class Game:
         p.pets_dirty = p.bank_dirty = True
         if pt.get('sulk'):
             pt['sulk'] = False
-            self.sys(p, '蘿絲:「%s 已經不生氣了,以後要好好照顧牠喔。」' % pt['n'])
+            if pt['joy'] < CARE['angry']:
+                self.sys(p, '蘿絲:「%s 還在生悶氣呢……多摸摸牠、陪牠玩、餵牠愛吃的東西,心情就會好起來。」' % pt['n'])
+            else:
+                self.sys(p, '蘿絲:「%s 已經不生氣了,以後要好好照顧牠喔。」' % pt['n'])
         else:
             self.sys(p, '從寵物旅館領回了 %s。' % pt['n'])
 
@@ -2126,7 +2129,7 @@ class Game:
             return 'starve'
         if pt['food'] < CARE['hungry']:
             return 'hungry'
-        if pt['joy'] < 30:
+        if pt['joy'] < CARE['angry']:
             return 'angry'
         foes = b.alive(1 - u.side)
         if u.hp < u.mhp * 0.3 or (foes and max(f.lv for f in foes) >= u.lv + 5):

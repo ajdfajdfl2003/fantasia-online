@@ -66,6 +66,8 @@ public/ui.js       介面視窗(狀態、戰鬥指令、寵物與照顧、旅館
 public/assets/     遊戲圖片(pets/、npcs/),沒有圖就用程式繪圖
 public/tools/      去背 / 裁切小工具
 tests/             無頭測試:python tests/test_phase1.py [--balance]、python tests/test_phase2.py
+                   實測用的除錯伺服器:python tests/debug_server.py → http://localhost:8123
+                   (另一份存檔 data/debug/,聊天輸入 /gm 可以直接調飽食度、快樂值、親密度、遇敵、離家出走……)
 docs/              開發文件:路線圖、各階段 spec / plan / 交接、寵物王研究筆記
 data/players.json  角色存檔(第一次有人登入後自動產生,不進 git)
 ```

@@ -46,7 +46,8 @@ function tint(hex, k) {
   return v;
 }
 const shade = c => tint(c, -0.28), lighten = c => tint(c, 0.3);
-function shadow(g, rx, ry, a = 0.28) { g.fillStyle = `rgba(0,0,0,${a})`; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fill(); }
+let NO_SHADOW = false;   // 跟隨寵物做動作時,影子由外面畫在地上,角色本身不畫影子
+function shadow(g, rx, ry, a = 0.28) { if (NO_SHADOW) return; g.fillStyle = `rgba(0,0,0,${a})`; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fill(); }
 function poly(g, pts, col) {
   g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]);
   for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
@@ -399,12 +400,19 @@ function creatureH(sp) {
   }
   return CREATURE_H[sp] || 40;
 }
-// 身體寬度 (跟隨距離用):有圖就依圖片內容計算
+// 身體寬度 (跟隨距離用):有圖就依圖片內容計算;pose = 'sleep' 等動作圖 (沒有那張圖就用主圖)
 const CREATURE_W = { poring: 22, slime: 26, imp: 24, goblin: 22, wolf: 36, fox: 36, skeleton: 22, dove: 28, bat: 30, griffin: 48, drake: 44, dragon: 140 };
-function creatureW(sp) {
-  const key = 'pets/' + sp, img = ART.on && ART.imgs[key];
+function creatureW(sp, pose) {
+  const base = 'pets/' + sp, key = pose && ART.imgs[base + '_' + pose] ? base + '_' + pose : base, img = ART.on && ART.imgs[key];
   if (img) { const m = ART.meta[key]; return Math.round((m.r - m.l) * artDrawSize(key, img, (ART.sizes[sp] || {}).size || 64)); }
   return CREATURE_W[sp] || 26;
+}
+// 地上的影子 (跟隨寵物做動作時用,大小和圖片版的影子一樣)
+function creatureShadow(g, sp, x, y) {
+  const w = creatureW(sp);
+  g.save(); g.translate(Math.round(x), Math.round(y));
+  shadow(g, Math.max(6, w * 0.36), Math.max(2, w * 0.1), (ART.sizes[sp] || {}).hover ? 0.2 : 0.28);
+  g.restore();
 }
 function drawNpcArt(g, cls, x, y, face, t) {
   return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
