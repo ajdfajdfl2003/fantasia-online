@@ -136,7 +136,7 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 #menu { position: absolute; right: 8px; bottom: 8px; padding: 5px; display: flex; gap: 4px; }
 
 /* ---------- 戰鬥指令面板 ---------- */
-#bpanel { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 15; padding: 5px 6px; width: 660px; max-width: calc(100vw - 16px); }
+#bpanel { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 15; padding: 5px 6px; width: 740px; max-width: calc(100vw - 16px); }
 .brow { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
 .brow + .brow { border-top: 1px dotted #3c4a74; }
 .bp-face { width: 40px; height: 40px; flex: none; image-rendering: pixelated; background: radial-gradient(#3c5a9a, #0e1630); border: 1px solid #6a7aa8; }
@@ -288,3 +288,34 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .bank-row small { color: #9aa8cc; }
 .bank-row button { flex: none; padding: 2px 6px; }
 .bank-empty { padding: 12px; text-align: center; }
+
+/* ---------- 階段 3:寵物視窗分頁、血統、配對 ---------- */
+.pd-tabs { display: flex; gap: 2px; margin-top: 6px; border-bottom: 1px solid #c9a95c; }
+.pd-tabs .tab { padding: 2px 14px; filter: brightness(.75); border-bottom: none; }
+.pd-tabs .tab.on { filter: none; }
+.pd-line { margin-top: 6px; padding: 4px 6px; background: rgba(0, 0, 0, .25); border: 1px solid #3c4a74; line-height: 1.7; }
+.line-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px dashed rgba(255, 255, 255, .08); }
+.line-row:last-child { border-bottom: none; }
+.line-row > span { width: 34px; color: #ffe8a8; flex: none; }
+.line-row small { color: #9aa8cc; }
+.evo-req { display: flex; gap: 14px; }
+#pd-evo { margin: 3px 0; }
+#pd-evo.glow, .breed-go.glow { animation: assistglow .4s infinite alternate; }
+.small { font-size: 11px; }
+.skill-chip em { font-style: normal; font-size: 10px; margin-right: 3px; padding: 0 2px; border-radius: 2px; }
+.skill-chip.excl em { background: #a0602a; color: #fff; }
+.skill-chip.inh em { background: #3a7ac0; color: #fff; }
+.skill-chip.excl { border-color: #e0a040; }
+.skill-chip.inh { border-color: #6aa8f0; }
+.breed-body { display: flex; gap: 10px; }
+.breed-col { flex: 1; min-width: 0; }
+.breed-row { cursor: pointer; }
+.breed-row.sel { border-color: #ffd84a; background: rgba(255, 216, 74, .15); }
+.breed-row.no { opacity: .55; }
+.breed-prev { padding: 4px 6px; background: rgba(0, 0, 0, .25); border: 1px solid #3c4a74; min-height: 200px; line-height: 1.7; }
+.breed-prev h4 { margin: 4px 0 2px; color: #ffe8a8; font-weight: normal; }
+.breed-opt { display: flex; align-items: center; gap: 4px; padding: 1px 2px; cursor: pointer; }
+.breed-opt img { width: 32px; height: 32px; image-rendering: pixelated; }
+.breed-opt input { margin: 0; }
+.breed-why { color: #ff8a7a; }
+.breed-go { margin-top: 6px; width: 100%; }

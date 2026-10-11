@@ -291,8 +291,10 @@ def can_fight(pt):
 
 
 def is_estrus(pt):
-    """發情 (= 春心蕩漾 ♥):快樂值、親密度夠高,而且沒有肚子餓"""
-    return pt['joy'] >= CARE['love_joy'] and pt['bond'] >= CARE['love_bond'] and pt['food'] >= CARE['hungry']
+    """發情 (= 春心蕩漾 ♥):快樂值、親密度夠高,而且沒有肚子餓。
+    用畫面上顯示的數字判斷 (快樂值、飽食度無條件進位,親密度捨去),免得畫面寫 80 卻還沒發情"""
+    return (math.ceil(pt['joy']) >= CARE['love_joy'] and int(pt['bond']) >= CARE['love_bond']
+            and math.ceil(pt['food']) >= CARE['hungry'])
 
 
 def evo_ready(pt):
@@ -318,7 +320,7 @@ def pet_mood(pt, idle=0.0):
         return 'angry'
     if idle >= CARE['sleepy_idle']:
         return 'sleepy'
-    if pt['joy'] >= CARE['love_joy'] and pt['bond'] >= CARE['love_bond']:
+    if is_estrus(pt):
         return 'love'
     return ''
 
@@ -1028,7 +1030,7 @@ class Game:
         """條件剛達成時通知一次「快要進化了」"""
         if pt in p.pets and pt['uid'] not in p.evo_told and evo_ready(pt)[0]:
             p.evo_told.add(pt['uid'])
-            self.sys(p, '%s 身上發出淡淡的光……好像快要進化了!(寵物視窗 → 血統)' % pt['n'], 'ann')
+            self.sys(p, '%s 身上發出淡淡的光……好像快要進化了!(寵物視窗 → 血統)' % pt['n'])
 
     def evolve(self, p, i):
         pt = self.get_pet(p, i)
@@ -1050,7 +1052,7 @@ class Game:
         p.pets_dirty = True
         self.add_fx('evolve', p.x, p.y, id=p.id, act=int(i == p.active), sp=pt['sp'], st=new['stage'])
         self.sys(p, '%s 進化成了「%s」!能力提升了,之後每升一級多 %d 點能力點數。'
-                 % (name0, new['name'], EVOLVE['grow'][new['stage'] - 1]), 'ann')
+                 % (name0, new['name'], EVOLVE['grow'][new['stage'] - 1]))
         ups = ['%s→%s' % (PET_SKILLS[SKILL_TIERS[k][old['stage']]]['name'], PET_SKILLS[SKILL_TIERS[k][new['stage']]]['name'])
                for k in lines]
         if ups:
@@ -1126,7 +1128,7 @@ class Game:
         self.sys(p, '%s 和 %s 配對成功!葛莉絲婆婆收下了一顆%s的蛋。(選「我要孵蛋」就能孵)'
                  % (pa['n'], pb['n'], SPECIES[sp]['name']))
         if SPECIES[sp].get('hybrid'):
-            self.sys(p, '咦?這顆蛋的花紋好像跟爸爸媽媽都不太一樣……', 'ann')
+            self.sys(p, '咦?這顆蛋的花紋好像跟爸爸媽媽都不太一樣……')
 
     # ---------- 寵物旅館 ----------
     def bank_put(self, p, i):
