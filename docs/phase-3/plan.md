@@ -21,7 +21,7 @@
     除錯伺服器加 `/gm inh`
 
 ## 後半段:收尾
-- [ ] 10. 繪圖 prompt:`docs/art/gen_prompts.py` 加入進化型態與混種(給階段 4 產圖用)
+- [x] 10. 繪圖 prompt:`docs/art/gen_prompts.py` 加入進化型態與混種(給階段 4 產圖用)
 - [ ] 11. 瀏覽器實測一輪(配對、孵配對蛋、進化、新技能、混種),修 bug、調數值
 - [ ] 12. 更新 `README.md`、`docs/roadmap.md`、遊戲內說明視窗
 - [ ] 13. 寫 `handoff.md`:第四階段(美術升級)的開場 prompt
