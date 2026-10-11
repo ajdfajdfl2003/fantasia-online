@@ -74,8 +74,8 @@ NPC_DLG = {
                [['tp:%d' % i, '%s (%d 金幣)' % (t[0], t[3])] for i, t in enumerate(TELEPORTS)] + [['close', '算了']]),
     'hatcher': ('呵呵呵,我是孵化屋的葛莉絲。\n每一顆蛋都有自己喜歡的溫度和濕度,\n照顧得越好,孵出來的孩子素質越好喔。\n'
                 '我也會收購寵物,不想養的可以賣給我。',
-                [['eggs', '購買寵物蛋'], ['hatch', '我要孵蛋'], ['sellpet', '賣寵物'], ['hint', '孵蛋有什麼訣竅?'],
-                 ['close', '下次再說']]),
+                [['eggs', '購買寵物蛋'], ['hatch', '我要孵蛋'], ['breed', '寵物配對'], ['sellpet', '賣寵物'],
+                 ['hint', '孵蛋有什麼訣竅?'], ['breedhint', '配對有什麼訣竅?'], ['close', '下次再說']]),
     'keeper': ('歡迎來到寵物旅館~我是老闆娘蘿絲。\n帶不下的寵物可以寄放在這裡,免費喔!\n'
                '住在旅館的孩子每天都在後院玩,心情會慢慢變好。',
                [['bank', '寄放 / 領回寵物'], ['bankinfo', '旅館是做什麼的?'], ['close', '下次再說']]),
@@ -219,7 +219,8 @@ def new_pet(sp, lv, q, name=None, start='new'):
         bond = random.randint(*bond)
     return {'uid': secrets.token_hex(4), 'sp': sp, 'n': name or s['name'], 'lv': lv, 'exp': 0, 'q': q,
             'st': st, 'pts': s['grow'] * (lv - 1), 'hp': d['mhp'], 'mp': d['mmp'],
-            'food': float(food), 'joy': float(joy), 'bond': float(bond), 'sync': 0.0}
+            'food': float(food), 'joy': float(joy), 'bond': float(bond), 'sync': 0.0,
+            'inh': None, 'par': None, 'gen': 1}
 
 
 def pet_ok(pt):
@@ -238,7 +239,25 @@ def fix_pet(pt):
         except (TypeError, ValueError):
             pt[k] = float(v)
     pt['sulk'] = bool(pt.get('sulk', False))
+    # 階段 3:遺傳技能、雙親、代數 (階段由種族代號決定,不另外存)
+    if pt.get('inh') not in SKILL_TIERS:
+        pt['inh'] = None
+    if not isinstance(pt.get('par'), list):
+        pt['par'] = None
+    try:
+        pt['gen'] = max(1, int(pt.get('gen', 1)))
+    except (TypeError, ValueError):
+        pt['gen'] = 1
     return pt
+
+
+def egg_ok(e):
+    """婆婆保管的配對蛋格式檢查 (讀檔用)"""
+    try:
+        return (SPECIES[e['sp']]['stage'] == 0 and 0 <= int(e['q0']) <= 12
+                and (e.get('inh') is None or e.get('inh') in SKILL_TIERS))
+    except Exception:
+        return False
 
 
 def skills_of(pt):
@@ -247,21 +266,46 @@ def skills_of(pt):
 
 
 def pet_view(pt):
-    d = derive(pt['lv'], pt['st'])
-    return {'uid': pt['uid'], 'sp': pt['sp'], 'n': pt['n'], 'lv': pt['lv'], 'exp': pt['exp'], 'nx': exp_need(pt['lv']),
+    d, s = derive(pt['lv'], pt['st']), SPECIES[pt['sp']]
+    v = {'uid': pt['uid'], 'sp': pt['sp'], 'n': pt['n'], 'lv': pt['lv'], 'exp': pt['exp'], 'nx': exp_need(pt['lv']),
             'q': pt['q'], 'star': stars(pt['q']), 'st': pt['st'], 'pts': pt['pts'], 'hp': pt['hp'], 'mp': pt['mp'],
             'mhp': d['mhp'], 'mmp': d['mmp'], 'atk': d['atk'], 'matk': d['matk'], 'def': d['def'], 'mdef': d['mdef'],
             'spd': round(d['spd'], 1), 'skills': skills_of(pt),
             'food': int(math.ceil(pt['food'])), 'joy': int(math.ceil(pt['joy'])), 'bond': int(pt['bond']),
-            'sync': int(pt['sync']), 'sulk': int(pt.get('sulk', False))}
+            'sync': int(pt['sync']), 'sulk': int(pt.get('sulk', False)),
+            'stage': s['stage'], 'line': s['line'], 'inh': pt.get('inh'), 'par': pt.get('par'), 'gen': pt.get('gen', 1),
+            'estrus': int(is_estrus(pt))}
+    if s['evo']:
+        v.update({'evo': s['evo'], 'evo_lv': EVOLVE['lv'][s['stage']], 'evo_bond': EVOLVE['bond'][s['stage']]})
+    return v
 
 
 def pet_price(pt):
-    return 30 + pt['lv'] * 15 + pt['q'] * 25 + (100 if 'egg' in SPECIES[pt['sp']] else 0)
+    s = SPECIES[pt['sp']]
+    return (30 + pt['lv'] * 15 + pt['q'] * 25 + (100 if 'egg' in SPECIES[s['line']] else 0)
+            + (EVOLVE['price'][s['stage'] - 1] if s['stage'] else 0))
 
 
 def can_fight(pt):
     return pt['hp'] > 0 and pt['food'] > 0
+
+
+def is_estrus(pt):
+    """發情 (= 春心蕩漾 ♥):快樂值、親密度夠高,而且沒有肚子餓"""
+    return pt['joy'] >= CARE['love_joy'] and pt['bond'] >= CARE['love_bond'] and pt['food'] >= CARE['hungry']
+
+
+def evo_ready(pt):
+    """能不能進化:回傳 (可以, 不行的原因)"""
+    s = SPECIES[pt['sp']]
+    if not s['evo']:
+        return False, '%s 已經是最終型態了。' % pt['n']
+    lv, bond = EVOLVE['lv'][s['stage']], EVOLVE['bond'][s['stage']]
+    if pt['lv'] < lv:
+        return False, '%s 要 Lv.%d 才能進化。' % (pt['n'], lv)
+    if pt['bond'] < bond:
+        return False, '%s 跟你的親密度要 %d 以上才能進化。' % (pt['n'], bond)
+    return True, ''
 
 
 def pet_mood(pt, idle=0.0):
@@ -307,6 +351,8 @@ class Player:
                     if isinstance(s, dict) and s.get('id') in ITEMS][:INV_MAX]
         self.pets = [fix_pet(pt) for pt in rec.get('pets', []) if pet_ok(pt)][:PET_MAX]
         self.bank = [fix_pet(pt) for pt in rec.get('bank', []) if pet_ok(pt)]   # 寄放在寵物旅館的寵物
+        self.eggs = [e for e in rec.get('eggs', []) if isinstance(e, dict) and egg_ok(e)][:BREED['eggs_max']]   # 婆婆保管的配對蛋
+        self.evo_told = set()     # 已經通知過「快要進化了」的寵物 uid
         self.active = min(max(0, int(rec.get('active', 0))), max(0, len(self.pets) - 1))
         self.x, self.y = float(rec.get('x', SPAWN[0])), float(rec.get('y', SPAWN[1]))
         self.recalc()
@@ -326,7 +372,7 @@ class Player:
         self.sulk = {}            # 寵物 uid → 快樂值與飽食度都是 0 持續了幾秒
         self.idle_since = time.time()
         self.care_n = 0
-        self.inv_dirty = self.pets_dirty = self.bank_dirty = True
+        self.inv_dirty = self.pets_dirty = self.bank_dirty = self.eggs_dirty = True
 
     def remove_pet(self, i):
         """從身上移除第 i 隻寵物,並修正出戰寵物的索引"""
@@ -360,7 +406,7 @@ class Player:
     def record(self):
         r = dict(self.rec)
         r.update({'cls': self.cls, 'lv': self.lv, 'exp': self.exp, 'gold': self.gold, 'inv': self.inv,
-                  'pets': self.pets, 'bank': self.bank, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
+                  'pets': self.pets, 'bank': self.bank, 'eggs': self.eggs, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
                   'hp': self.hp, 'mp': self.mp, 'last': int(time.time()), 'cd': live_cd(self.cd, time.time())})
         r.pop('equip', None)
         return r
@@ -625,7 +671,8 @@ class Game:
             self.save()
         species = {k: {'n': v['name'], 'el': v['el'], 'fam': v['fam'], 'base': v['base'], 'grow': v['grow'],
                        'skills': v['skills'], 'egg': 'egg' in v, 'love': v.get('love'), 'hate': v.get('hate'),
-                       'trick': v.get('trick')} for k, v in SPECIES.items()}
+                       'trick': v.get('trick'), 'stage': v['stage'], 'line': v['line'], 'evo': v['evo'],
+                       'look': v.get('look'), 'hybrid': int(bool(v.get('hybrid')))} for k, v in SPECIES.items()}
         classes = {k: {'n': v['name'], 'desc': v['desc'], 'skills': v['skills']} for k, v in CLASSES.items()}
         care = {k: CARE[k] for k in ('hungry', 'full', 'sync_bond', 'guard_bond', 'bank_max', 'assist')}
         care['trick_bond'] = INTERACT['trick']['need_bond']
@@ -634,7 +681,8 @@ class Game:
                  'elements': ELEMENTS, 'statusNames': STATUS_NAMES, 'weather': {k: v['name'] for k, v in WEATHER.items()},
                  'hatchTime': HATCH_TIME, 'hatchWarmup': HATCH_WARMUP, 'petMax': PET_MAX,
                  'foods': list(FOODS), 'tasteNames': TASTE_NAMES, 'care': care, 'art': ART,
-                 'interact': {k: {'n': v['name'], 'cd': v['cd']} for k, v in INTERACT.items()}})
+                 'interact': {k: {'n': v['name'], 'cd': v['cd']} for k, v in INTERACT.items()},
+                 'exclusive': EXCLUSIVE, 'breed': BREED, 'evolve': {'lv': EVOLVE['lv'], 'bond': EVOLVE['bond']}})
         self.broadcast_sys('%s 進入了遊戲。' % name)
         if is_new:
             self.sys(p, '歡迎來到幻想之境!你的第一個夥伴是「噗噗」。按 P 可以查看寵物。')
@@ -654,8 +702,11 @@ class Game:
         b = self.battles.get(p.battle)
         if b:
             self.leave_battle(b, p, time.time())
-        if p.hatch:   # 孵到一半離線:把蛋還回去
-            self.add_item(p, p.hatch['egg'])
+        if p.hatch:   # 孵到一半離線:把蛋還回去 (配對蛋還給婆婆保管)
+            if p.hatch.get('bred'):
+                p.eggs.append(p.hatch['bred'])
+            else:
+                self.add_item(p, p.hatch['egg'])
             p.hatch = None
         self.accounts[p.name] = p.record()
         self.players.pop(p.id, None)
@@ -705,6 +756,12 @@ class Game:
             return self.bank_get(p, m.get('i'))
         if t == 'pact':
             return self.pet_interact(p, m.get('i'), str(m.get('a', '')), now)
+        if t == 'evolve':
+            return self.evolve(p, m.get('i'))
+        if t == 'bprev':
+            return self.breed_preview(p, m.get('a'), m.get('b'))
+        if t == 'breed':
+            return self.breed(p, m.get('a'), m.get('b'), m.get('sp'), m.get('inh'))
         if t == 'use':
             return self.use_item(p, m.get('slot'), m.get('item'))
         if t == 'buy':
@@ -714,7 +771,7 @@ class Game:
         if t == 'dlg':
             return self.npc_action(p, m.get('npc'), str(m.get('act', '')), m)
         if t == 'hstart':
-            return self.hatch_start(p, m.get('slot'), now)
+            return self.hatch_start(p, m.get('slot'), now, m.get('egg'))
         if p.battle:   # 戰鬥中不能移動
             return
         p.idle_since = now
@@ -882,6 +939,7 @@ class Game:
                      'ok': '%s 把%s吃掉了。',
                      'hate': '%s 皺著眉頭吃掉了%s……好像很討厭。'}[tst] % (pt['n'], name))
         self.add_fx('pact', p.x, p.y, id=p.id, a='feed', r=tst, f=item, act=act, sp=pt['sp'])
+        self.check_evo_ready(p, pt)
         p.pets_dirty = True
 
     def pet_interact(self, p, i, a, now):
@@ -905,6 +963,7 @@ class Game:
             self.add_bond(pt, cfg['bond'])
             if cfg['food']:
                 self.add_food(p, pt, cfg['food'])
+            self.check_evo_ready(p, pt)
             p.pets_dirty = True
         n = pt['n']
         if a == 'pet':
@@ -963,6 +1022,111 @@ class Game:
             p.pets_dirty = True
             if p.bank:
                 p.bank_dirty = True
+
+    # ---------- 進化 ----------
+    def check_evo_ready(self, p, pt):
+        """條件剛達成時通知一次「快要進化了」"""
+        if pt in p.pets and pt['uid'] not in p.evo_told and evo_ready(pt)[0]:
+            p.evo_told.add(pt['uid'])
+            self.sys(p, '%s 身上發出淡淡的光……好像快要進化了!(寵物視窗 → 血統)' % pt['n'], 'ann')
+
+    def evolve(self, p, i):
+        pt = self.get_pet(p, i)
+        if pt is None or p.battle:
+            return
+        ok, why = evo_ready(pt)
+        if not ok:
+            return self.sys(p, why)
+        old, new = SPECIES[pt['sp']], SPECIES[SPECIES[pt['sp']]['evo']]
+        name0, line, inh = pt['n'], new['line'], pt.get('inh')
+        lines = [k for k, need in SPECIES[line]['skills'] if pt['lv'] >= need] + ([inh] if inh in SKILL_TIERS else [])
+        pt['st'] = [v + nb - ob for v, ob, nb in zip(pt['st'], old['base'], new['base'])]
+        if pt['n'] == old['name']:   # 沒改過名:換成新型態的名字
+            pt['n'] = new['name']
+        pt['sp'] = old['evo']
+        d = derive(pt['lv'], pt['st'])
+        pt['hp'], pt['mp'] = d['mhp'], d['mmp']
+        p.evo_told.discard(pt['uid'])
+        p.pets_dirty = True
+        self.add_fx('evolve', p.x, p.y, id=p.id, act=int(i == p.active), sp=pt['sp'], st=new['stage'])
+        self.sys(p, '%s 進化成了「%s」!能力提升了,之後每升一級多 %d 點能力點數。'
+                 % (name0, new['name'], EVOLVE['grow'][new['stage'] - 1]), 'ann')
+        ups = ['%s→%s' % (PET_SKILLS[SKILL_TIERS[k][old['stage']]]['name'], PET_SKILLS[SKILL_TIERS[k][new['stage']]]['name'])
+               for k in lines]
+        if ups:
+            self.sys(p, '技能升階:' + '、'.join(ups))
+        if new['stage'] == 1:
+            self.sys(p, '%s 學會了專屬技能「%s」!' % (pt['n'], PET_SKILLS[EXCLUSIVE[line]]['name']))
+        else:
+            self.broadcast_sys('%s 的 %s 進化成了傳說中的「%s」!' % (p.name, name0, new['name']), 'ann')
+        self.check_evo_ready(p, pt)
+
+    # ---------- 配對 (孵化屋的葛莉絲婆婆) ----------
+    def breed_info(self, p, a, b):
+        """配對預覽,也用來檢查能不能配。兩隻寵物不對就回傳 None"""
+        pa, pb = self.get_pet(p, a), self.get_pet(p, b)
+        if pa is None or pb is None or a == b:
+            return None
+        why = []
+        for pt in (pa, pb):
+            if pt['lv'] < BREED['min_lv']:
+                why.append('%s 要 Lv.%d 以上才能配對。' % (pt['n'], BREED['min_lv']))
+            if not is_estrus(pt):
+                why.append('%s 還沒發情(快樂值 %d、親密度 %d 以上,而且不能肚子餓)。'
+                           % (pt['n'], CARE['love_joy'], CARE['love_bond']))
+        la, lb = SPECIES[pa['sp']]['line'], SPECIES[pb['sp']]['line']
+        choices = [la] if la == lb else [la, lb]
+        hy = HYBRIDS.get(frozenset((la, lb)))
+        if hy:
+            choices.append(hy)
+        pool = []
+        for k in inheritable(pa['sp'], pa.get('inh')) + inheritable(pb['sp'], pb.get('inh')):
+            if k not in pool:
+                pool.append(k)
+        opts = [{'sp': sp, 'inh': [k for k in pool if k not in [x for x, _ in SPECIES[sp]['skills']]]} for sp in choices]
+        q0 = int(math.floor((pa['q'] + pb['q']) / 2.0 + 0.5))
+        cost = BREED['cost_base'] + BREED['cost_lv'] * int(math.floor((pa['lv'] + pb['lv']) / 2.0 + 0.5))
+        if p.gold < cost:
+            why.append('金幣不夠(要 %d)。' % cost)
+        if len(p.eggs) >= BREED['eggs_max']:
+            why.append('婆婆那裡已經有 %d 顆配對蛋了,先孵掉再來吧。' % BREED['eggs_max'])
+        return {'a': a, 'b': b, 'ok': int(not why), 'why': why, 'opts': opts, 'q0': q0, 'cost': cost}
+
+    def breed_preview(self, p, a, b):
+        info = self.breed_info(p, a, b)
+        p.ws.send(dict(info, t='bprev') if info else {'t': 'bprev', 'a': a, 'b': b, 'ok': 0, 'why': ['請選兩隻不同的寵物。']})
+
+    def breed(self, p, a, b, sp, inh):
+        if p.battle:
+            return
+        if not self.near_npc(p, 'hatcher'):
+            return self.sys(p, '要配對,請到孵化屋找葛莉絲婆婆。')
+        info = self.breed_info(p, a, b)
+        if info is None:
+            return
+        if not info['ok']:
+            return self.sys(p, info['why'][0])
+        opt = next((o for o in info['opts'] if o['sp'] == sp), None)
+        if opt is None:
+            return
+        inh = inh or None
+        if inh is not None and inh not in opt['inh']:
+            return
+        pa, pb = p.pets[a], p.pets[b]
+        p.gold -= info['cost']
+        p.inv_dirty = True
+        for pt in (pa, pb):
+            self.add_joy(pt, -BREED['joy_cost'])
+        p.eggs.append({'sp': sp, 'q0': info['q0'], 'inh': inh,
+                       'par': [{'n': x['n'], 'sp': x['sp'], 'q': x['q']} for x in (pa, pb)],
+                       'gen': max(pa.get('gen', 1), pb.get('gen', 1)) + 1})
+        p.eggs_dirty = p.pets_dirty = True
+        p.idle_since = time.time()
+        self.add_fx('pact', p.x, p.y, id=p.id, a='breed', r='ok', act=1, sp=pa['sp'])
+        self.sys(p, '%s 和 %s 配對成功!葛莉絲婆婆收下了一顆%s的蛋。(選「我要孵蛋」就能孵)'
+                 % (pa['n'], pb['n'], SPECIES[sp]['name']))
+        if SPECIES[sp].get('hybrid'):
+            self.sys(p, '咦?這顆蛋的花紋好像跟爸爸媽媽都不太一樣……', 'ann')
 
     # ---------- 寵物旅館 ----------
     def bank_put(self, p, i):
@@ -1028,6 +1192,7 @@ class Game:
             self.sys(p, '%s 升到了 Lv.%d!獲得 %d 點能力點數。' % (pt['n'], pt['lv'], SPECIES[pt['sp']]['grow']))
             for sk in set(skills_of(pt)) - old:
                 self.sys(p, '%s 學會了新技能「%s」!' % (pt['n'], PET_SKILLS[sk]['name']))
+        self.check_evo_ready(p, pt)
         p.pets_dirty = True
         return up
 
@@ -1161,6 +1326,15 @@ class Game:
             p.ws.send({'t': 'shop', 'i': n['i'], 'title': '寵物蛋', 'items': EGG_SHOP})
         elif act == 'hatch' and c == 'hatcher':
             p.ws.send({'t': 'hatchui'})
+        elif act == 'breed' and c == 'hatcher':
+            p.eggs_dirty = True
+            p.ws.send({'t': 'breedui'})
+        elif act == 'breedhint' and c == 'hatcher':
+            text = ('兩隻寵物都要 Lv.%d 以上,而且心情好到冒出 ♥(發情),才能配對。\n'
+                    '孩子可以選爸爸或媽媽的種族,還能從牠們身上挑一個技能遺傳下去。\n'
+                    '不過每種寵物的「專屬技能」是傳不下去的喔。\n'
+                    '孩子的天生素質至少有爸媽的平均,孵得好還會更高。\n\n' % BREED['min_lv']) + '\n'.join(BREED_HINTS)
+            p.ws.send({'t': 'dlg', 'i': n['i'], 'n': n['n'], 'text': text, 'opts': [['close', '謝謝婆婆']]})
         elif act == 'sellpet' and c == 'hatcher':
             p.ws.send({'t': 'petsell'})
         elif act == 'hint' and c == 'hatcher':
@@ -1199,21 +1373,31 @@ class Game:
             self.sys(p, '一陣光芒閃過……你被傳送到了%s。' % name)
 
     # ---------- 孵蛋 ----------
-    def hatch_start(self, p, slot, now):
+    def hatch_start(self, p, slot, now, bred_i=None):
+        """開始孵蛋:slot = 背包裡的蛋,bred_i = 婆婆保管的配對蛋"""
         if p.hatch:
             return self.sys(p, '孵蛋器裡已經有一顆蛋了。')
         if not self.near_npc(p, 'hatcher'):
             return self.sys(p, '請到孵化屋找葛莉絲婆婆孵蛋。')
-        if not isinstance(slot, int) or not 0 <= slot < len(p.inv) or ITEMS[p.inv[slot]['id']]['type'] != 'egg':
+        if bred_i is not None:
+            if not isinstance(bred_i, int) or not 0 <= bred_i < len(p.eggs):
+                return
+        elif not isinstance(slot, int) or not 0 <= slot < len(p.inv) or ITEMS[p.inv[slot]['id']]['type'] != 'egg':
             return
         if len(p.pets) >= PET_MAX:
             return self.sys(p, '身上的寵物已經有 %d 隻了,先寄放到寵物旅館、賣掉或放生一隻再來孵吧。' % PET_MAX)
-        egg = p.inv[slot]['id']
-        self.take_item(p, egg)
-        p.hatch = {'egg': egg, 'sp': ITEMS[egg]['sp'], 'start': now, 'kt': 50.0, 'kh': 50.0,
+        if bred_i is not None:
+            bred, egg = p.eggs.pop(bred_i), None
+            p.eggs_dirty = True
+            sp, name = bred['sp'], '%s的配對蛋' % SPECIES[bred['sp']]['name']
+        else:
+            bred, egg = None, p.inv[slot]['id']
+            self.take_item(p, egg)
+            sp, name = ITEMS[egg]['sp'], ITEMS[egg]['name']
+        p.hatch = {'egg': egg, 'bred': bred, 'sp': sp, 'start': now, 'kt': 50.0, 'kh': 50.0,
                    'ot': random.uniform(-12, 12), 'oh': random.uniform(-12, 12), 'vt': 0.0, 'vh': 0.0,
                    'sum': 0.0, 'n': 0, 'send': 0.0}
-        self.sys(p, '把%s放進孵蛋器了。調整溫度和濕度,讓蛋覺得舒服吧!' % ITEMS[egg]['name'])
+        self.sys(p, '把%s放進孵蛋器了。調整溫度和濕度,讓蛋覺得舒服吧!' % name)
 
     def hatch_tick(self, p, now, dt):
         h = p.hatch
@@ -1225,8 +1409,8 @@ class Game:
                 h[v] = -h[v] * 0.5
         at = max(0.0, min(100.0, h['kt'] + h['ot']))
         ah = max(0.0, min(100.0, h['kh'] + h['oh']))
-        egg = SPECIES[h['sp']]['egg']
-        d = math.hypot(at - egg['temp'], ah - egg['hum'])
+        et, eh = hatch_pref(h['sp'])
+        d = math.hypot(at - et, ah - eh)
         c = 1.0 if d <= 3 else max(0.0, 1 - (d - 3) / 25.0)
         el = now - h['start']
         if el >= HATCH_WARMUP:
@@ -1238,14 +1422,23 @@ class Game:
                        'kt': round(h['kt'], 1), 'kh': round(h['kh'], 1), 'c': round(c, 2)})
         if el >= HATCH_TIME:
             avg = h['sum'] / h['n'] if h['n'] else c
-            q = max(0, min(12, int(round(12 * avg ** 1.5))))
-            pt = new_pet(h['sp'], 1, q, start='hatch')
+            bred = h.get('bred')
+            if bred:   # 配對蛋:雙親的平均是下限,孵得好往 12 點加
+                q0 = int(bred['q0'])
+                q = max(0, min(12, q0 + int(round((12 - q0) * avg ** 1.5))))
+                pt = new_pet(h['sp'], 1, q, start='breed')
+                pt['inh'], pt['par'], pt['gen'] = bred.get('inh'), bred.get('par'), int(bred.get('gen', 2))
+            else:
+                q = max(0, min(12, int(round(12 * avg ** 1.5))))
+                pt = new_pet(h['sp'], 1, q, start='hatch')
             p.hatch = None
             p.pets.append(pt)
             p.pets_dirty = True
             p.ws.send({'t': 'hatched', 'pet': pet_view(pt)})
             self.add_fx('lvl', p.x, p.y, id=p.id, hatch=1)
             self.sys(p, '蛋殼裂開了……孵出了 %s!天生素質 %d 點 (%s)' % (pt['n'], q, '★' * stars(q)))
+            if pt['inh']:
+                self.sys(p, '%s 從爸爸媽媽那裡遺傳了技能「%s」!' % (pt['n'], PET_SKILLS[pt['inh']]['name']))
             if q >= 12:
                 self.broadcast_sys('%s 孵出了 12 點的極品%s!葛莉絲婆婆都看呆了!' % (p.name, pt['n']), 'ann')
 
@@ -2223,6 +2416,9 @@ class Game:
             if p.pets_dirty:
                 p.pets_dirty = False
                 p.ws.send(self.pets_msg(p, now))
+            if p.eggs_dirty:
+                p.eggs_dirty = False
+                p.ws.send({'t': 'beggs', 'eggs': [dict(e, n=SPECIES[e['sp']]['name']) for e in p.eggs]})
             if p.bank_dirty:
                 p.bank_dirty = False
                 p.ws.send({'t': 'bank', 'bank': [pet_view(pt) for pt in p.bank], 'max': CARE['bank_max']})
