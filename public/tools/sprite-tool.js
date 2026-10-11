@@ -458,6 +458,7 @@ function outBlob() { return new Promise(r => T.out.toBlob(r, 'image/png')); }
 async function refreshManifest() {
   T.man = await fetch('/assets.json', { cache: 'no-store' }).then(r => r.json());
   ART.sizes = T.man.art;
+  setLooks(T.man.looks);   // 進化型態沒有圖時的樣子 (程式繪圖預覽用)
 }
 async function save() {
   if (!T.out) return;

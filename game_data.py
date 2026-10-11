@@ -264,7 +264,7 @@ def _make_forms():
                 'skills': [(SKILL_TIERS[s][st], lv) for s, lv in sp['skills']] + [(EXCLUSIVE[line], 1)],
                 'cap': 0, 'love': sp['love'], 'hate': sp['hate'], 'trick': sp['trick'],
                 'line': line, 'stage': st, 'evo': line + '3' if st == 1 else None,
-                'look': {'from': line, 'filter': look, 'scale': EVOLVE['scale'][st - 1], 'crown': st == 2},
+                'look': {'from': line, 'filter': look, 'scale': EVOLVE['scale'][st - 1], 'shine': st == 2},
             }
 
 

@@ -2561,7 +2561,8 @@ def asset_manifest():
                     files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
     return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src_files(),
             'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
-            'npcs': {n['c']: n['n'] for n in NPCS}}
+            'npcs': {n['c']: n['n'] for n in NPCS},
+            'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}
 
 
 def art_path(name):

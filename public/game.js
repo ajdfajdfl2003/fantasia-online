@@ -100,6 +100,7 @@ function startGame(m) {
     elements: m.elements, statusNames: m.statusNames, weatherNames: m.weather,
     hatchTime: m.hatchTime, hatchWarmup: m.hatchWarmup, petMax: m.petMax,
     foods: m.foods || [], tasteNames: m.tasteNames || {}, care: m.care || {}, art: m.art || {}, interact: m.interact || {} });
+  setLooks(m.species);   // 進化型態的樣子 (沒有圖時用初階變色、放大)
   cv = $('#view'); ctx = cv.getContext('2d'); mm = $('#minimap'); mmc = mm.getContext('2d');
   paintTrees(); buildMinimap();
   ART.onload = () => UI.artChanged();
