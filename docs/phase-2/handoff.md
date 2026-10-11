@@ -14,7 +14,7 @@
   去背小工具 `public/tools/sprite-tool.html`、prompt 產生器 `docs/art/gen_prompts.py`;
   畫風定案**精緻 Q 版**,噗噗、小火妖各 4 張圖已進遊戲
 - **測試**:`tests/test_phase2.py` 106 項、`tests/test_phase1.py` 88 項全過;
-  新增除錯伺服器 `tests/debug_server.py`,瀏覽器裡逐格看過全部動畫與演出(含 11 種表演)
+  新增除錯伺服器 `tests/debug_server.py`,瀏覽器裡逐格看過全部動畫與演出(含 11 種表演),使用者實際玩過確認
 
 詳細規則見 `spec.md`,實作與兩輪實測修掉的問題見 `plan.md`。
 
