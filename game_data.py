@@ -67,6 +67,102 @@ PET_SKILLS = {
     'heal':       {'name': '治療', 'mp': 8, 'type': 'heal', 'mult': 0.3, 'target': 'ally', 'fx': 'heal',
                    'desc': '恢復隊友 30% HP'},
     'breath':     {'name': '龍息', 'mp': 16, 'type': 'mag', 'el': 'fire', 'mult': 1.4, 'target': 'enemies', 'fx': 'breath'},
+    'bite':       {'name': '撕咬', 'mp': 5, 'type': 'phys', 'mult': 1.5, 'status': ('defdown', 10), 'target': 'enemy', 'fx': 'bite',
+                   'desc': '60% 讓敵人防禦力下降 30%,持續 10 秒'},
+
+    # ----- 中階 / 高階 (進化時種族技能線升階,見 SKILL_TIERS) -----
+    'strike':     {'name': '強力撞擊', 'mp': 5, 'type': 'phys', 'mult': 1.8, 'target': 'enemy', 'fx': 'slam'},
+    'smash':      {'name': '超強撞擊', 'mp': 8, 'type': 'phys', 'mult': 2.3, 'target': 'enemy', 'fx': 'slam'},
+    'quad':       {'name': '四段攻擊', 'mp': 13, 'type': 'phys', 'mult': 0.7, 'hits': 4, 'target': 'enemy', 'fx': 'slash'},
+    'assassin':   {'name': '暗殺', 'mp': 9, 'type': 'phys', 'mult': 1.7, 'pierce': True, 'target': 'enemy', 'fx': 'slash',
+                   'desc': '無視對方防禦'},
+    'assassin2':  {'name': '強力暗殺', 'mp': 13, 'type': 'phys', 'mult': 2.2, 'pierce': True, 'target': 'enemy', 'fx': 'slash',
+                   'desc': '無視對方防禦'},
+    'bite2':      {'name': '猛咬', 'mp': 8, 'type': 'phys', 'mult': 1.9, 'status': ('defdown', 10), 'target': 'enemy', 'fx': 'bite',
+                   'desc': '60% 讓敵人防禦力下降 30%,持續 10 秒'},
+    'bite3':      {'name': '致命咬', 'mp': 12, 'type': 'phys', 'mult': 2.4, 'status': ('defdown', 12), 'target': 'enemy', 'fx': 'bite',
+                   'desc': '60% 讓敵人防禦力下降 30%,持續 12 秒'},
+    'absorb':     {'name': '能量吸收', 'mp': 9, 'type': 'phys', 'mult': 1.4, 'el': 'dark', 'drain': 0.55, 'target': 'enemy', 'fx': 'drain',
+                   'desc': '吸收造成傷害的 55%'},
+    'lifesteal':  {'name': '生命掠奪', 'mp': 13, 'type': 'phys', 'mult': 1.8, 'el': 'dark', 'drain': 0.6, 'target': 'enemy', 'fx': 'drain',
+                   'desc': '吸收造成傷害的 60%'},
+    'fireball2':  {'name': '大火球', 'mp': 9, 'type': 'mag', 'el': 'fire', 'mult': 2.0, 'target': 'enemy', 'fx': 'fire'},
+    'fireball3':  {'name': '爆炎球', 'mp': 13, 'type': 'mag', 'el': 'fire', 'mult': 2.5, 'target': 'enemy', 'fx': 'fire'},
+    'iceball2':   {'name': '大冰球', 'mp': 9, 'type': 'mag', 'el': 'water', 'mult': 2.0, 'target': 'enemy', 'fx': 'ice'},
+    'iceball3':   {'name': '冰晶彈', 'mp': 13, 'type': 'mag', 'el': 'water', 'mult': 2.5, 'target': 'enemy', 'fx': 'ice'},
+    'gale2':      {'name': '颶風', 'mp': 9, 'type': 'mag', 'el': 'wind', 'mult': 2.0, 'target': 'enemy', 'fx': 'wind'},
+    'gale3':      {'name': '真空刃', 'mp': 13, 'type': 'mag', 'el': 'wind', 'mult': 2.5, 'target': 'enemy', 'fx': 'wind'},
+    'laser2':     {'name': '強力雷射', 'mp': 10, 'type': 'mag', 'el': 'light', 'mult': 2.1, 'target': 'enemy', 'fx': 'laser'},
+    'laser3':     {'name': '極光射線', 'mp': 14, 'type': 'mag', 'el': 'light', 'mult': 2.6, 'target': 'enemy', 'fx': 'laser'},
+    'quake2':     {'name': '大地震', 'mp': 19, 'type': 'mag', 'el': 'earth', 'mult': 1.35, 'target': 'enemies', 'fx': 'quake'},
+    'quake3':     {'name': '地裂', 'mp': 26, 'type': 'mag', 'el': 'earth', 'mult': 1.65, 'target': 'enemies', 'fx': 'quake'},
+    'flamerain2': {'name': '流星火雨', 'mp': 19, 'type': 'mag', 'el': 'fire', 'mult': 1.35, 'target': 'enemies', 'fx': 'flamerain'},
+    'flamerain3': {'name': '隕石雨', 'mp': 26, 'type': 'mag', 'el': 'fire', 'mult': 1.65, 'target': 'enemies', 'fx': 'flamerain'},
+    'icicle2':    {'name': '冰風暴', 'mp': 19, 'type': 'mag', 'el': 'water', 'mult': 1.35, 'target': 'enemies', 'fx': 'icicle'},
+    'icicle3':    {'name': '絕對零度', 'mp': 26, 'type': 'mag', 'el': 'water', 'mult': 1.65, 'target': 'enemies', 'fx': 'icicle'},
+    'holy2':      {'name': '神聖光陣', 'mp': 19, 'type': 'mag', 'el': 'light', 'mult': 1.35, 'target': 'enemies', 'fx': 'holy'},
+    'holy3':      {'name': '超聖光陣', 'mp': 26, 'type': 'mag', 'el': 'light', 'mult': 1.65, 'target': 'enemies', 'fx': 'holy'},
+    'darkcircle2': {'name': '深淵法陣', 'mp': 19, 'type': 'mag', 'el': 'dark', 'mult': 1.35, 'target': 'enemies', 'fx': 'darkc'},
+    'darkcircle3': {'name': '冥界法陣', 'mp': 26, 'type': 'mag', 'el': 'dark', 'mult': 1.65, 'target': 'enemies', 'fx': 'darkc'},
+    'breath2':    {'name': '烈焰龍息', 'mp': 22, 'type': 'mag', 'el': 'fire', 'mult': 1.7, 'target': 'enemies', 'fx': 'breath'},
+    'breath3':    {'name': '煉獄龍息', 'mp': 30, 'type': 'mag', 'el': 'fire', 'mult': 2.0, 'target': 'enemies', 'fx': 'breath'},
+    'sleep2':     {'name': '中階睡眠', 'mp': 10, 'type': 'status', 'status': ('sleep', 8), 'chance': 0.75, 'target': 'enemy', 'fx': 'sleep',
+                   'desc': '75% 機率讓敵人睡著 8 秒 (被打會醒)'},
+    'sleep3':     {'name': '高階睡眠', 'mp': 12, 'type': 'status', 'status': ('sleep', 10), 'chance': 0.9, 'target': 'enemy', 'fx': 'sleep',
+                   'desc': '90% 機率讓敵人睡著 10 秒 (被打會醒)'},
+    'weaken2':    {'name': '持久弱化', 'mp': 8, 'type': 'status', 'status': ('defdown', 25), 'chance': 1.0, 'target': 'enemy',
+                   'fx': 'debuff', 'desc': '敵人防禦力下降 30%,持續 25 秒'},
+    'weaken3':    {'name': '全體弱化', 'mp': 14, 'type': 'status', 'status': ('defdown', 20), 'chance': 1.0, 'target': 'enemies',
+                   'fx': 'debuff', 'desc': '全體敵人防禦力下降 30%,持續 20 秒'},
+    'heal2':      {'name': '強力治療', 'mp': 11, 'type': 'heal', 'mult': 0.45, 'target': 'ally', 'fx': 'heal',
+                   'desc': '恢復隊友 45% HP'},
+    'heal3':      {'name': '群體治療術', 'mp': 16, 'type': 'heal', 'mult': 0.3, 'target': 'allies', 'fx': 'heal',
+                   'desc': '我方全體寵物恢復 30% HP'},
+
+    # ----- 專屬技能 (中階學會,不能遺傳,見 EXCLUSIVE) -----
+    'jellyeat':   {'name': '果凍吞噬', 'mp': 8, 'type': 'phys', 'el': 'earth', 'mult': 1.5, 'drain': 0.5, 'target': 'enemy',
+                   'fx': 'slam', 'desc': '吸收造成傷害的 50%'},
+    'acid':       {'name': '強酸黏液', 'mp': 8, 'type': 'phys', 'el': 'water', 'mult': 1.2, 'status': ('defdown', 15), 'target': 'enemy',
+                   'fx': 'poison', 'desc': '60% 讓敵人防禦力下降 30%,持續 15 秒'},
+    'pilfer':     {'name': '順手牽羊', 'mp': 6, 'type': 'phys', 'mult': 1.2, 'steal': 3, 'target': 'enemy', 'fx': 'slash',
+                   'desc': '打中時偷到金幣 (敵人等級 ×3),每隻敵人只能偷一次'},
+    'howl':       {'name': '狼嚎', 'mp': 10, 'type': 'status', 'status': ('atkup', 15), 'chance': 1.0, 'target': 'allies', 'fx': 'roar',
+                   'desc': '我方全體寵物攻擊力提升 30%,持續 15 秒'},
+    'curse':      {'name': '亡者詛咒', 'mp': 12, 'type': 'status', 'status': ('atkdown', 12), 'chance': 0.8, 'target': 'enemies',
+                   'fx': 'debuff', 'desc': '80% 讓全體敵人攻擊力下降 20%,持續 12 秒'},
+    'firedance':  {'name': '火妖之舞', 'mp': 18, 'type': 'mag', 'el': 'fire', 'mult': 1.3, 'status': ('poison', 10), 'chance': 0.4,
+                   'target': 'enemies', 'fx': 'flamerain', 'desc': '全體火屬性魔法,各 40% 灼傷 (持續扣血)'},
+    'blessing':   {'name': '七彩祝福', 'mp': 14, 'type': 'heal', 'mult': 0.25, 'target': 'allies', 'fx': 'heal',
+                   'desc': '我方全體寵物恢復 25% HP'},
+    'moonshade':  {'name': '幻月', 'mp': 10, 'type': 'mag', 'el': 'water', 'mult': 1.5, 'status': ('sleep', 6), 'target': 'enemy',
+                   'fx': 'ice', 'desc': '60% 讓敵人睡著 6 秒'},
+    'feast':      {'name': '血之盛宴', 'mp': 16, 'type': 'phys', 'el': 'dark', 'mult': 0.8, 'drain': 0.4, 'target': 'enemies',
+                   'fx': 'darkc', 'desc': '全體攻擊,吸收造成傷害的 40%'},
+    'dive':       {'name': '天空俯衝', 'mp': 12, 'type': 'phys', 'el': 'light', 'mult': 2.2, 'pierce': True, 'target': 'enemy',
+                   'fx': 'slam', 'desc': '無視對方防禦'},
+    'dragonrage': {'name': '龍之怒', 'mp': 18, 'type': 'mag', 'el': 'fire', 'mult': 2.6, 'target': 'enemy', 'fx': 'fire'},
+    'moonfang':   {'name': '月下狼牙', 'mp': 10, 'type': 'phys', 'el': 'water', 'mult': 0.75, 'hits': 3, 'target': 'enemy', 'fx': 'slash'},
+    'duskveil':   {'name': '暮光幻影', 'mp': 16, 'type': 'status', 'status': ('sleep', 6), 'chance': 0.5, 'target': 'enemies',
+                   'fx': 'darkc', 'desc': '50% 讓全體敵人睡著 6 秒 (被打會醒)'},
+}
+
+# 種族技能線:初階 → 中階 → 高階 (進化時升階;遺傳也是以初階代號記錄)
+SKILL_TIERS = {
+    'tackle': ('tackle', 'strike', 'smash'), 'double': ('double', 'triple', 'quad'),
+    'sneak': ('sneak', 'assassin', 'assassin2'), 'bite': ('bite', 'bite2', 'bite3'),
+    'drain': ('drain', 'absorb', 'lifesteal'), 'fireball': ('fireball', 'fireball2', 'fireball3'),
+    'iceball': ('iceball', 'iceball2', 'iceball3'), 'gale': ('gale', 'gale2', 'gale3'),
+    'laser': ('laser', 'laser2', 'laser3'), 'quake': ('quake', 'quake2', 'quake3'),
+    'flamerain': ('flamerain', 'flamerain2', 'flamerain3'), 'icicle': ('icicle', 'icicle2', 'icicle3'),
+    'holy': ('holy', 'holy2', 'holy3'), 'darkcircle': ('darkcircle', 'darkcircle2', 'darkcircle3'),
+    'breath': ('breath', 'breath2', 'breath3'), 'sleep': ('sleep', 'sleep2', 'sleep3'),
+    'weaken': ('weaken', 'weaken2', 'weaken3'), 'heal': ('heal', 'heal2', 'heal3'),
+}
+# 專屬技能 (種族系 → 技能):中階學會,不能遺傳
+EXCLUSIVE = {
+    'poring': 'jellyeat', 'slime': 'acid', 'goblin': 'pilfer', 'wolf': 'howl', 'skeleton': 'curse', 'imp': 'firedance',
+    'dove': 'blessing', 'fox': 'moonshade', 'bat': 'feast', 'griffin': 'dive', 'drake': 'dragonrage',
+    'silverwolf': 'moonfang', 'duskbird': 'duskveil',
 }
 
 # ============================================================
@@ -80,26 +176,26 @@ PET_SKILLS = {
 # ============================================================
 SPECIES = {
     'poring':   {'name': '噗噗', 'el': 'earth', 'fam': 'bug', 'base': (15, 14, 9, 12), 'grow': 4, 'pref': (1, 2, 1, 1),
-                 'skills': [('tackle', 1), ('heal', 5), ('quake', 10)], 'cap': 0.75,
+                 'skills': [('tackle', 1), ('heal', 5), ('quake', 10)], 'cap': 0.75, 'hatch': (50, 70),
                  'love': 'berry', 'hate': 'wood', 'trick': ('彈跳三連', 'bounce', '噗噗噗!')},
     'slime':    {'name': '綠史萊姆', 'el': 'water', 'fam': 'bug', 'base': (16, 10, 10, 12), 'grow': 5, 'pref': (2, 1, 1, 1),
-                 'skills': [('double', 1), ('iceball', 5), ('sneak', 10)], 'cap': 0.7,
+                 'skills': [('double', 1), ('iceball', 5), ('sneak', 10)], 'cap': 0.7, 'hatch': (40, 90),
                  'love': '*', 'hate': None, 'trick': ('軟Q壓扁', 'squash', '啵~')},
     'goblin':   {'name': '哥布林', 'el': 'earth', 'fam': 'humanoid', 'base': (14, 14, 8, 12), 'grow': 4, 'pref': (2, 2, 0, 1),
-                 'skills': [('tackle', 1), ('sneak', 5), ('heal', 10)], 'cap': 0.6,
+                 'skills': [('tackle', 1), ('sneak', 5), ('heal', 10)], 'cap': 0.6, 'hatch': (70, 40),
                  'love': 'wheat', 'hate': 'fish', 'trick': ('揮棒轉圈', 'spin', '嘿嘿!')},
     'wolf':     {'name': '野狼', 'el': 'wind', 'fam': 'beast', 'base': (18, 13, 8, 17), 'grow': 4, 'pref': (2, 1, 0, 2),
-                 'skills': [('double', 1), ('gale', 5), ('triple', 10)], 'cap': 0.55,
+                 'skills': [('double', 1), ('gale', 5), ('bite', 10)], 'cap': 0.55, 'hatch': (55, 45),
                  'love': 'meat', 'hate': 'wheat', 'trick': ('仰天長嚎', 'howl', '嗷嗚~')},
     'skeleton': {'name': '骷髏兵', 'el': 'dark', 'fam': 'humanoid', 'base': (20, 10, 16, 15), 'grow': 5, 'pref': (2, 1, 1, 1),
-                 'skills': [('double', 1), ('darkcircle', 5), ('drain', 10)], 'cap': 0.45,
+                 'skills': [('double', 1), ('darkcircle', 5), ('drain', 10)], 'cap': 0.45, 'hatch': (80, 30),
                  'love': 'wood', 'hate': 'meat', 'trick': ('骨頭喀啦喀啦', 'shake', '喀啦喀啦')},
     'imp':      {'name': '小火妖', 'el': 'fire', 'fam': 'fairy', 'base': (12, 12, 22, 16), 'grow': 6, 'pref': (0, 1, 3, 1),
                  'skills': [('fireball', 1), ('weaken', 5), ('flamerain', 10)], 'cap': 0.4,
                  'egg': {'price': 450, 'temp': 90, 'hum': 10},
                  'love': 'ore', 'hate': 'fish', 'trick': ('噴火圈', 'fire', '呼~!')},
     'dove':     {'name': '彩虹鴿', 'el': 'light', 'fam': 'wing', 'base': (22, 18, 15, 18), 'grow': 4, 'pref': (2, 1, 1, 1),
-                 'skills': [('double', 1), ('laser', 5), ('triple', 10)], 'cap': 0.5,
+                 'skills': [('double', 1), ('laser', 5), ('heal', 10)], 'cap': 0.5,
                  'egg': {'price': 260, 'temp': 60, 'hum': 35},
                  'love': 'wheat', 'hate': 'meat', 'trick': ('繞圈飛', 'circle', '咕咕~')},
     'fox':      {'name': '月狐', 'el': 'water', 'fam': 'beast', 'base': (16, 10, 19, 16), 'grow': 4, 'pref': (0, 1, 2, 1),
@@ -118,11 +214,86 @@ SPECIES = {
                  'skills': [('tackle', 1), ('fireball', 3), ('breath', 8)], 'cap': 0,
                  'egg': {'price': 3000, 'temp': 95, 'hum': 20, 'shop': False},
                  'love': 'ore', 'hate': 'fish', 'trick': ('噴小火苗', 'fire', '噗~呼!')},
+    # ----- 混種 (只能靠配對得到,見 HYBRIDS) -----
+    'silverwolf': {'name': '銀月狼', 'el': 'water', 'fam': 'beast', 'base': (19, 12, 16, 18), 'grow': 5, 'pref': (2, 1, 1, 2),
+                   'skills': [('bite', 1), ('iceball', 5), ('sleep', 10)], 'cap': 0, 'hatch': (50, 55), 'hybrid': True,
+                   'love': 'meat', 'hate': 'wood', 'trick': ('對月長嚎', 'howl', '嗷嗚——')},
+    'duskbird':   {'name': '暮光鳥', 'el': 'dark', 'fam': 'wing', 'base': (19, 17, 18, 20), 'grow': 5, 'pref': (1, 1, 1, 1),
+                   'skills': [('drain', 1), ('laser', 5), ('heal', 10)], 'cap': 0, 'hatch': (60, 45), 'hybrid': True,
+                   'love': 'berry', 'hate': 'meat', 'trick': ('夜空翱翔', 'circle', '咕吱~')},
 }
 
+# 混種:兩個種族系配對時多一個選項 (不分順序、任何階段都算)
+HYBRIDS = {
+    frozenset(('wolf', 'fox')): 'silverwolf',
+    frozenset(('dove', 'bat')): 'duskbird',
+}
 
-def pet_skills(sp, lv):
-    return [s for s, need in SPECIES[sp]['skills'] if lv >= need]
+# 進化型態:種族系 → ((中階名字, 程式繪圖的濾鏡), (高階名字, 濾鏡))
+# 程式代號是初階代號加 2、3 (poring2、poring3);沒有專屬圖片時,用初階的樣子套濾鏡、放大
+FORMS = {
+    'poring':     (('彈彈噗', 'hue-rotate(-45deg) saturate(1.2)'), ('噗噗國王', 'hue-rotate(55deg) saturate(1.5)')),
+    'slime':      (('大史萊姆', 'hue-rotate(60deg)'), ('史萊姆王', 'hue-rotate(150deg) saturate(1.3)')),
+    'goblin':     (('哥布林戰士', 'hue-rotate(-30deg) saturate(1.2)'), ('哥布林酋長', 'hue-rotate(-90deg) saturate(1.3)')),
+    'wolf':       (('疾風狼', 'sepia(0.6) hue-rotate(60deg) saturate(1.5)'), ('狼王', 'brightness(0.55) contrast(1.3)')),
+    'skeleton':   (('骷髏騎士', 'sepia(0.5) hue-rotate(180deg) saturate(1.3)'), ('骷髏將軍', 'sepia(0.8) hue-rotate(-20deg) saturate(2)')),
+    'imp':        (('火妖', 'hue-rotate(-25deg) saturate(1.3)'), ('炎魔', 'hue-rotate(200deg) saturate(1.4)')),
+    'dove':       (('虹光鴿', 'sepia(0.4) saturate(2) hue-rotate(10deg)'), ('天虹鳥', 'sepia(0.6) saturate(3) hue-rotate(-10deg)')),
+    'fox':        (('雪月狐', 'hue-rotate(20deg) saturate(1.5)'), ('九尾月狐', 'sepia(0.5) saturate(2) hue-rotate(-15deg)')),
+    'bat':        (('血翼蝠', 'hue-rotate(60deg) saturate(1.6)'), ('夜王蝠', 'brightness(0.6) saturate(1.4)')),
+    'griffin':    (('獅鷲騎獸', 'hue-rotate(180deg) saturate(1.1)'), ('皇家獅鷲', 'hue-rotate(-15deg) saturate(1.8)')),
+    'drake':      (('飛龍', 'hue-rotate(-20deg) saturate(1.2)'), ('赤炎龍', 'hue-rotate(-35deg) saturate(1.5)')),
+    'silverwolf': (('月影狼', 'hue-rotate(40deg) saturate(1.3)'), ('天狼', 'brightness(1.15) saturate(0.6)')),
+    'duskbird':   (('夜虹鳥', 'hue-rotate(40deg) saturate(1.3)'), ('晨昏鳳凰', 'hue-rotate(-60deg) saturate(1.6)')),
+}
+# 進化:條件 (中階, 高階)、能力倍率、每級多給的點數、賣價加成、顯示大小倍率
+EVOLVE = {'lv': (12, 24), 'bond': (40, 70), 'stat': (1.25, 1.5), 'grow': (1, 2), 'price': (150, 400), 'scale': (1.15, 1.3)}
+
+
+def _make_forms():
+    """從初階產生中階、高階的種族資料 (poring → poring2、poring3)"""
+    for line in list(SPECIES):
+        sp = SPECIES[line]
+        sp.update({'line': line, 'stage': 0, 'evo': line + '2'})
+        for st in (1, 2):
+            name, look = FORMS[line][st - 1]
+            k = EVOLVE['stat'][st - 1]
+            SPECIES[line + str(st + 1)] = {
+                'name': name, 'el': sp['el'], 'fam': sp['fam'], 'base': tuple(int(round(v * k)) for v in sp['base']),
+                'grow': sp['grow'] + EVOLVE['grow'][st - 1], 'pref': sp['pref'],
+                'skills': [(SKILL_TIERS[s][st], lv) for s, lv in sp['skills']] + [(EXCLUSIVE[line], 1)],
+                'cap': 0, 'love': sp['love'], 'hate': sp['hate'], 'trick': sp['trick'],
+                'line': line, 'stage': st, 'evo': line + '3' if st == 1 else None,
+                'look': {'from': line, 'filter': look, 'scale': EVOLVE['scale'][st - 1], 'crown': st == 2},
+            }
+
+
+_make_forms()
+
+
+def hatch_pref(sp):
+    """這個種族的蛋喜歡的 (溫度, 濕度)"""
+    s = SPECIES[sp]
+    return (s['egg']['temp'], s['egg']['hum']) if 'egg' in s else s['hatch']
+
+
+def pet_skills(sp, lv, inh=None):
+    """會的技能:種族技能 (依等級) + 專屬技能 (中階以上) + 遺傳技能 (跟著階段升階)"""
+    s = SPECIES[sp]
+    out = [k for k, need in s['skills'] if lv >= need]
+    if inh in SKILL_TIERS:
+        k = SKILL_TIERS[inh][s.get('stage', 0)]
+        if k not in out:
+            out.append(k)
+    return out
+
+
+def inheritable(sp, inh=None):
+    """這隻寵物可以遺傳給小寵的技能 (初階代號):種族技能線 + 自己的遺傳技能,不含專屬技能"""
+    out = [k for k, _ in SPECIES[SPECIES[sp]['line']]['skills']]
+    if inh in SKILL_TIERS and inh not in out:
+        out.append(inh)
+    return out
 
 
 def derive(lv, st):
@@ -245,6 +416,7 @@ EGG_SHOP = ['egg_' + k for k, sp in SPECIES.items() if 'egg' in sp and sp['egg']
 CARE = {
     # 起始值 (飽食度, 快樂值, 親密度)
     'start_new': (80, 70, 20), 'start_hatch': (70, 80, 30), 'start_wild': (50, 40, (0, 10)), 'start_old': (80, 70, 15),
+    'start_breed': (70, 80, 40),   # 配對蛋孵出來的 (自己配出來的,比較親)
     'hungry': 30,              # 低於這個值 = 肚子餓
     'full': 90,                # 這個值以上吃不下
     'angry': 30,               # 快樂值低於這個值 = 鬧脾氣 (冒 💢 泡泡)
@@ -280,6 +452,14 @@ CARE = {
 # 餵食效果:口味 → (飽食度, 快樂值, 親密度)
 TASTE = {'love': (35, 10, 4), 'like': (30, 5, 2), 'ok': (30, 2, 0), 'hate': (15, -8, 0)}
 TASTE_NAMES = {'love': '最愛', 'like': '喜歡', 'ok': '普通', 'hate': '討厭'}
+
+# 配對 (孵化屋的葛莉絲婆婆):發情 = 快樂值 ≥ CARE['love_joy']、親密度 ≥ CARE['love_bond']、沒有肚子餓
+# 費用 = cost_base + cost_lv × 兩隻的平均等級;配完雙親快樂值 −joy_cost;婆婆最多保管 eggs_max 顆配對蛋
+BREED = {'min_lv': 10, 'cost_base': 100, 'cost_lv': 10, 'joy_cost': 40, 'eggs_max': 3}
+BREED_HINTS = [
+    '聽說滿月的晚上,狼和狐狸會生下銀色的孩子……',
+    '白天的鳥兒和夜晚的蝙蝠……黃昏的時候會發生什麼事呢?',
+]
 
 # 互動動作:快樂值、親密度、飽食度、冷卻秒數、條件
 INTERACT = {
@@ -329,8 +509,12 @@ ART = {
     'poring': {'size': 34}, 'slime': {'size': 36}, 'imp': {'size': 40, 'hover': 6}, 'goblin': {'size': 46},
     'wolf': {'size': 60}, 'skeleton': {'size': 52}, 'dove': {'size': 44, 'hover': 12}, 'fox': {'size': 60},
     'bat': {'size': 44, 'hover': 14}, 'griffin': {'size': 78}, 'drake': {'size': 68}, 'dragon': {'size': 160},
+    'silverwolf': {'size': 60}, 'duskbird': {'size': 46, 'hover': 12},
     'npc': {'size': 56},
 }
+for _k, _sp in SPECIES.items():   # 進化型態:初階的大小 × 1.15 / × 1.3
+    if _sp['stage']:
+        ART[_k] = dict(ART[_sp['line']], size=int(round(ART[_sp['line']]['size'] * _sp['look']['scale'])))
 ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.png …
 
 # ============================================================
