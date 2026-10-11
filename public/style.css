@@ -320,3 +320,5 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .breed-why { color: #ff8a7a; }
 .breed-go { margin-top: 6px; width: 100%; }
 #win-help .body { max-height: calc(100vh - 90px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #6680c4 transparent; }
+.breed-ok { text-align: center; padding: 10px 4px; line-height: 1.8; }
+.breed-ok img { width: 64px; height: 64px; image-rendering: pixelated; }

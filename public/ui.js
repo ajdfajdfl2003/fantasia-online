@@ -544,9 +544,10 @@ const UI = (() => {
   // ============================================================
   //  寵物配對 (孵化屋的葛莉絲婆婆)
   // ============================================================
-  let breedSel = [], breedPrev = null;
+  let breedSel = [], breedPrev = null, breedDone = null;   // breedDone:剛配對成功 (顯示成功訊息,直到再選寵物)
   const breedPick = { sp: null, inh: null };
-  function openBreed() { breedSel = []; breedPrev = null; openWin('breed'); }
+  function openBreed() { breedSel = []; breedPrev = null; breedDone = null; openWin('breed'); }
+  function bred(m) { breedDone = m; breedSel = []; breedPrev = null; if (!el('win-breed').hidden) renderBreed(); }
   function requestPrev() { if (breedSel.length === 2) send({ t: 'bprev', a: breedSel[0], b: breedSel[1] }); }
   function renderBreed() {
     const list = el('breed-pets'), B = S.breed || {};
@@ -560,6 +561,7 @@ const UI = (() => {
         <span class="${pt.estrus ? 'good' : 'bad'}">${pt.estrus ? '✓ 發情' : '✗ 還沒發情'}</span> · 素質 ${pt.q} 點</small></div>`;
       d.onclick = () => {
         const k = breedSel.indexOf(i);
+        breedDone = null;
         if (k >= 0) breedSel.splice(k, 1);
         else { breedSel.push(i); if (breedSel.length > 2) breedSel.shift(); }
         breedPrev = null;
@@ -581,6 +583,21 @@ const UI = (() => {
   }
   function renderBreedPrev() {
     const box = el('breed-prev'), B = S.breed || {};
+    if (breedSel.length < 2 && breedDone) {   // 剛配對成功
+      const d = breedDone, sp = S.species[d.sp] || {};
+      box.innerHTML = `<div class="breed-ok"><b class="love">♥ 配對成功!</b><br>
+        <img src="${petIconURL(d.sp)}"><br>${esc(d.a)} × ${esc(d.b)} 的孩子:<b>${esc(sp.n || d.sp)}</b>${sp.hybrid ? ' <span class="mood-tag love">混種!</span>' : ''}<br>
+        遺傳技能:${d.inh ? `<b class="gold">${esc((S.pskills[d.inh] || {}).name || '')}</b>` : '<span class="dim">沒有</span>'} ·
+        天生素質 <b class="gold">${d.q0} ~ 12</b> 點<br>
+        <span class="dim">蛋已經交給葛莉絲婆婆保管了。<br>爸爸媽媽的快樂值降了 ${B.joy_cost || 40},要再照顧到 ♥ 才能再配對。</span></div>
+        <button class="breed-go big glow" id="breed-hatch">去孵蛋</button>`;
+      el('breed-hatch').onclick = () => {
+        const n = S.npcs.find(x => x.c === 'hatcher');
+        closeWin('breed');
+        if (n) send({ t: 'dlg', npc: n.i, act: 'hatch' });
+      };
+      return;
+    }
     if (breedSel.length < 2) {
       box.innerHTML = `<p class="dim">從左邊選兩隻寵物。<br>兩隻都要 Lv.${B.min_lv || 10} 以上,而且在發情(♥:快樂值 ${S.care.love_joy || 80}、親密度 ${S.care.love_bond || 60} 以上)。</p>`;
       return;
@@ -897,7 +914,7 @@ const UI = (() => {
     initLogin, loginError, enterGame, overlay, status, inv, pets, chat, addChat, dialog, shop,
     openHatch, hatchUpdate, hatched, openPets, battleOpen, battleClose, battleAuto, tick,
     closeMenus, swapMenu, toggleWin, toggleSound, closeAll, petMenu, bank, openBank, artChanged,
-    openBreed, breedPreview, beggs, petSkillList,
+    openBreed, breedPreview, bred, beggs, petSkillList,
   };
 })();
 

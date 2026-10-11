@@ -1074,8 +1074,14 @@ class Game:
             if pt['lv'] < BREED['min_lv']:
                 why.append('%s 要 Lv.%d 以上才能配對。' % (pt['n'], BREED['min_lv']))
             if not is_estrus(pt):
-                why.append('%s 還沒發情(快樂值 %d、親密度 %d 以上,而且不能肚子餓)。'
-                           % (pt['n'], CARE['love_joy'], CARE['love_bond']))
+                lack = []
+                if math.ceil(pt['joy']) < CARE['love_joy']:
+                    lack.append('快樂值 %d / %d' % (math.ceil(pt['joy']), CARE['love_joy']))
+                if int(pt['bond']) < CARE['love_bond']:
+                    lack.append('親密度 %d / %d' % (int(pt['bond']), CARE['love_bond']))
+                if math.ceil(pt['food']) < CARE['hungry']:
+                    lack.append('肚子餓了')
+                why.append('%s 還沒發情:%s。' % (pt['n'], '、'.join(lack)))
         la, lb = SPECIES[pa['sp']]['line'], SPECIES[pb['sp']]['line']
         choices = [la] if la == lb else [la, lb]
         hy = HYBRIDS.get(frozenset((la, lb)))
@@ -1125,6 +1131,7 @@ class Game:
         p.eggs_dirty = p.pets_dirty = True
         p.idle_since = time.time()
         self.add_fx('pact', p.x, p.y, id=p.id, a='breed', r='ok', act=1, sp=pa['sp'])
+        p.ws.send({'t': 'bred', 'sp': sp, 'a': pa['n'], 'b': pb['n'], 'inh': inh, 'q0': info['q0']})
         self.sys(p, '%s 和 %s 配對成功!葛莉絲婆婆收下了一顆%s的蛋。(選「我要孵蛋」就能孵)'
                  % (pa['n'], pb['n'], SPECIES[sp]['name']))
         if SPECIES[sp].get('hybrid'):

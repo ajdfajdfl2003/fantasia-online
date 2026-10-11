@@ -211,7 +211,7 @@ def test_breed(g):
     check('Lv.10 以下不能配', not info['ok'] and any('Lv.10' in x for x in info['why']))
     f['joy'] = 50.0
     info = g.breed_info(p, 0, 1)
-    check('沒發情不能配', not info['ok'] and any('發情' in x for x in info['why']))
+    check('沒發情不能配,而且說清楚差在哪裡', not info['ok'] and any('還沒發情:快樂值 50 / 80' in x for x in info['why']), info['why'])
     f['joy'] = 90.0
     info = g.breed_info(p, 0, 1)
     check('兩隻都符合:可以配', info['ok'], info['why'])
@@ -240,6 +240,8 @@ def test_breed(g):
           and [x['n'] for x in e.get('par', [])] == [w['n'], f['n']])
     check('雙親快樂值降下來,不再發情 (自然冷卻)', not server.is_estrus(w))
     check('配對的愛心演出', fx_of(g, 'pact') and fx_of(g, 'pact')[-1]['a'] == 'breed')
+    m = p.ws.last('bred')
+    check('通知客戶端配對成功 (配對視窗顯示結果)', m and m['sp'] == 'wolf' and m['inh'] == 'iceball' and m['q0'] == 9)
     # 混種、不遺傳技能
     w['joy'] = f['joy'] = 90.0
     g.breed(p, 0, 1, 'silverwolf', None)

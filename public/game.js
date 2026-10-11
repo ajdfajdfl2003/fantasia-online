@@ -85,6 +85,7 @@ function onMsg(m) {
     case 'bankui': UI.openBank(); break;
     case 'breedui': UI.openBreed(); break;
     case 'bprev': UI.breedPreview(m); break;
+    case 'bred': UI.bred(m); break;
     case 'beggs': S.beggs = m.eggs; UI.beggs(); break;
     case 'bend': onBattleEnd(m); break;
   }
