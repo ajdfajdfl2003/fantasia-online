@@ -8,11 +8,9 @@
 
 ## 目前進度(每次告一段落時更新)
 
-- 第四階段(美術升級)開工前討論中,分支 `feature/phase-4-art`。
-- 第 1~7 題已定案,紀錄在 `docs/phase-4/討論紀錄.md`。
-- **下次開工**:先讀 `docs/phase-4/討論紀錄.md`,從**第 8 題(換圖後的比例)**接著問(一次一題),
-  再問路線圖「待討論」兩題(上場怪獸的數量、伺服器與資料庫)要不要先討論;
-  全部問完才寫 `docs/phase-4/spec.md` → `plan.md`。
+- 第四階段(美術升級)開工前討論已全部問完,分支 `feature/phase-4-art`。
+- 第 1~10 題已定案(含路線圖「待討論」兩題),紀錄在 `docs/phase-4/討論紀錄.md`。
+- **下次開工**:先讀 `docs/phase-4/討論紀錄.md`,依它寫 `docs/phase-4/spec.md` → `plan.md`。
 
 ## 開發流程(使用者訂的守則,每次都要遵守)
 
@@ -75,6 +73,7 @@ python3 server.py
 python3 tests/test_phase3.py
 ```
 Mac 上如果另外裝了 3.8(例如 `uv python install 3.8`),測試優先用 3.8 跑;沒有的話,merge 回 main 前要在 Windows 用 3.8 跑過一次無頭測試。
+使用者的 Mac 已經用 uv 裝好 3.8.20(2026-10-12),指令是 `python3.8 tests/test_phase3.py`。
 
 - 伺服器開在 http://localhost:8000。
 - 測試檔:`tests/test_phase1.py`(加 `--balance` 跑戰鬥平衡模擬)、`test_phase2.py`、`test_phase3.py`。
