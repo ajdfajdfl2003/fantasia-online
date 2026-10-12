@@ -8,9 +8,9 @@
 
 ## 目前進度(每次告一段落時更新)
 
-- 第四階段(美術升級)開工前討論已全部問完,分支 `feature/phase-4-art`。
-- 第 1~10 題已定案(含路線圖「待討論」兩題),紀錄在 `docs/phase-4/討論紀錄.md`。
-- **下次開工**:先讀 `docs/phase-4/討論紀錄.md`,依它寫 `docs/phase-4/spec.md` → `plan.md`。
+- 第四階段(美術升級)的 `docs/phase-4/spec.md`、`plan.md` 已寫好(2026-10-13),分支 `feature/phase-4-art`。
+  討論與被否決的方案在 `docs/phase-4/討論紀錄.md`。
+- **下次開工**:讀 `spec.md` 和 `plan.md`,從 plan 第 1 項(WebP 管線)開始。
 
 ## 開發流程(使用者訂的守則,每次都要遵守)
 
