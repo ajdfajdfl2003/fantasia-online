@@ -502,7 +502,7 @@ def sync_gain(base, bond):
 
 # ============================================================
 #  美術:圖片在遊戲中的顯示大小 (256×256 畫布在畫面上的邊長,px) 與浮空高度
-#  圖片放在 public/assets/pets/<種族>.png,規格見 docs/art/美術規格.md
+#  圖片放在 public/assets/pets/<種族>.webp,規格見 docs/art/美術規格.md、docs/phase-4/spec.md 第 3 節
 # ============================================================
 #  2026-10-10 實測:原本 (噗噗 48) 跟人物比起來太大,全部縮小約 30%,噗噗約等於程式繪圖的大小
 ART = {
@@ -515,7 +515,14 @@ ART = {
 for _k, _sp in SPECIES.items():   # 進化型態:初階的大小 × 1.15 / × 1.3
     if _sp['stage']:
         ART[_k] = dict(ART[_sp['line']], size=int(round(ART[_sp['line']]['size'] * _sp['look']['scale'])))
-ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.png …
+ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.webp …
+OWNER_FRAMES = ('cast',)                   # 主人可有可無的動作圖:<職業>-<m|f>_cast.webp
+# 其他圖片的代號 → art-src/ 裡原圖的中文檔名
+ART_UI = {'login': '登入畫面', 'logo': 'Logo'}
+ART_GROUND = {'grass': '地面_草地', 'dark': '地面_森林草地', 'sand': '地面_沙路', 'stone': '地面_村莊石板',
+              'ash': '地面_荒原焦土', 'water': '地面_水面'}
+ART_DECO = {'tree_plain1': '草原樹1', 'tree_plain2': '草原樹2', 'tree_forest1': '森林樹1', 'tree_forest2': '森林樹2',
+            'tree_dead': '荒原枯樹', 'rock1': '岩石1', 'rock2': '岩石2', 'bush': '草叢', 'flowers': '花叢'}
 
 # ============================================================
 #  孵蛋

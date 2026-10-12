@@ -563,20 +563,20 @@ def test_art():
         m = server.asset_manifest()
         check('沒有圖時清單是空的,帶有顯示大小', m['files'] == [] and m['art']['poring']['size'] == gd.ART['poring']['size']
               and 'dragon' in m['species'])
-        png = server.PNG_SIG + b'fake-png-body'
-        ok, _ = server.save_art('pets/poring.png', png)
-        ok2, _ = server.save_art('pets/imp_attack.png', png)
-        ok3, _ = server.save_art('npcs/keeper.png', png)
+        webp = b'RIFF\x10\x00\x00\x00WEBPVP8 fake-body'   # 階段 4 起成品改存 WebP
+        ok, _ = server.save_art('pets/poring.webp', webp)
+        ok2, _ = server.save_art('pets/imp_attack.webp', webp)
+        ok3, _ = server.save_art('npcs/keeper.webp', webp)
         check('可以存主圖、動作圖、NPC 圖', ok and ok2 and ok3)
         m = server.asset_manifest()
-        check('清單列出存好的圖', sorted(f['p'] for f in m['files']) == ['npcs/keeper.png', 'pets/imp_attack.png', 'pets/poring.png'])
-        bad = ['pets/../server.py', 'pets/unknown.png', 'pets/poring_dance.png', 'other/poring.png', 'pets/poring.jpg',
-               '../poring.png', 'pets/sub/poring.png', 'npcs/nobody.png']
+        check('清單列出存好的圖', sorted(f['p'] for f in m['files']) == ['npcs/keeper.webp', 'pets/imp_attack.webp', 'pets/poring.webp'])
+        bad = ['pets/../server.py', 'pets/unknown.webp', 'pets/poring_dance.webp', 'other/poring.webp', 'pets/poring.jpg',
+               '../poring.webp', 'pets/sub/poring.webp', 'npcs/nobody.webp', 'pets/poring.png']
         check('不符規格的檔名一律拒絕', all(server.art_path(n) is None for n in bad), [n for n in bad if server.art_path(n)])
-        ok, _ = server.save_art('pets/slime.png', b'not a png')
-        check('不是 PNG 的資料拒絕', not ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'slime.png')))
-        ok, _ = server.save_art('pets/poring.png', b'', delete=True)
-        check('可以刪除圖片 (退回程式繪圖)', ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'poring.png')))
+        ok, _ = server.save_art('pets/slime.webp', b'not a webp')
+        check('不是 WebP 的資料拒絕', not ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'slime.webp')))
+        ok, _ = server.save_art('pets/poring.webp', b'', delete=True)
+        check('可以刪除圖片 (退回程式繪圖)', ok and not os.path.exists(os.path.join(server.ASSETS, 'pets', 'poring.webp')))
         # art-src/:使用者放原圖的地方,只列出圖片檔
         orig_src = server.ART_SRC
         server.ART_SRC = os.path.join(T.TMP, 'art-src')

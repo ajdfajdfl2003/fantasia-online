@@ -10,9 +10,15 @@
 測試在 Mac 用 `python3.8 tests/test_phaseN.py`;merge 回 main 前在 Windows 的 3.8.5 再跑一次。
 
 ## 前半段:工具與讀圖系統
-- [ ] 1. WebP 管線:伺服器(圖片清單列 `.webp` 與新資料夾、`/api/art` 接受 WebP 檔頭與 spec 第 3 節的檔名規則、`MIME` 加 `.webp`、
+- [x] 1. WebP 管線:伺服器(圖片清單列 `.webp` 與新資料夾、`/api/art` 接受 WebP 檔頭與 spec 第 3 節的檔名規則、`MIME` 加 `.webp`、
   `/assets/` 帶版本號時長快取);去背工具改存 WebP 品質 90、Safari 偵測並停用存檔;現有 8 張 PNG 轉成 WebP;
   品質 90 的 WebP 跟 PNG 並排,請使用者確認畫質
+  - 結果(2026-10-13):使用者看過 PNG / WebP 90 / WebP 95 並排,確認用品質 90。8 張轉完共約 143KB(原本 PNG 約 665KB)
+  - 登入畫面、地面、樹與裝飾的代號與中文檔名寫在 `game_data.py` 的 `ART_UI`、`ART_GROUND`、`ART_DECO`;草叢、花叢各 1 張(spec 已同步)
+  - `test_phase2.py` 的圖片管線測試改成 WebP。三支測試在 Python 3.8.20:88/88、106/106、75/75
+  - 瀏覽器(內建瀏覽器,Chromium):圖片回應是 `image/webp` 加長快取,`/assets.json`、`game.js` 是 `no-cache`;
+    重新整理後 8 張圖傳輸量都是 0;去背工具存一張再刪掉成功;遊戲裡噗噗顯示 WebP 圖;console 沒有錯誤
+  - Safari 的偵測只模擬過(把 `toBlob` 換成一律回 PNG,判斷成不支援、提示出現、兩個按鈕停用),還沒在真的 Safari 開過,留到第 25 項
 - [ ] 2. 無頭測試 `tests/test_phase4.py` 第一部分(檔名檢查、WebP 檔頭、圖片清單、快取標頭),確認階段 1~3 的測試仍然通過
 - [ ] 3. 去背工具批次模式(清單附原圖修改時間、列出還沒處理的原圖、一次去背排成縮圖、全部存進遊戲、失敗的標紅寫原因)
 - [ ] 4. 美術進度表 `public/tools/art-status.html`

@@ -24,12 +24,12 @@ import time
 import traceback
 from urllib.parse import parse_qs, unquote
 
-from game_data import (ART, ART_FRAMES, BOSS, BREED, BREED_HINTS, CARE, CLASSES, EGG_SHOP, ELEMENTS,
-                       ENCOUNTER_MIN_STEPS, ENCOUNTER_RATE, EVOLVE, EXCLUSIVE, FOODS, HATCH_HINTS, HATCH_TIME,
-                       HATCH_WARMUP, HYBRIDS, INTERACT, ITEMS, PET_SKILLS, ROAD_ENCOUNTER, SHOP_ITEMS, SKILL_TIERS,
-                       SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER, WILD_QUALITY_WEIGHTS, ZONES,
-                       assist_mult, derive, disobey_chance, elem_mult, exp_need, hatch_pref, inheritable, link_ratio,
-                       pet_skills, stars, sync_gain, taste)
+from game_data import (ART, ART_DECO, ART_FRAMES, ART_GROUND, ART_UI, BOSS, BREED, BREED_HINTS, CARE, CLASSES,
+                       EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS, ENCOUNTER_RATE, EVOLVE, EXCLUSIVE, FOODS, HATCH_HINTS,
+                       HATCH_TIME, HATCH_WARMUP, HYBRIDS, INTERACT, ITEMS, OWNER_FRAMES, PET_SKILLS, ROAD_ENCOUNTER,
+                       SHOP_ITEMS, SKILL_TIERS, SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER,
+                       WILD_QUALITY_WEIGHTS, ZONES, assist_mult, derive, disobey_chance, elem_mult, exp_need,
+                       hatch_pref, inheritable, link_ratio, pet_skills, stars, sync_gain, taste)
 
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -2540,7 +2540,7 @@ class WS:
 
 
 MIME = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
-        '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon',
+        '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon',
         '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml'}
 
 # ============================================================
@@ -2549,7 +2549,7 @@ MIME = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; cha
 ASSETS = os.path.join(PUBLIC, 'assets')
 ART_SRC = os.path.join(ROOT, 'art-src')     # 使用者放 AI 原圖的地方 (不進 git),檔名用中文名字,例如 噗噗.png
 ART_MAX_BYTES = 4 * 1024 * 1024
-PNG_SIG = b'\x89PNG\r\n\x1a\n'
+ART_DIRS = ('pets', 'owners', 'npcs', 'items', 'ui', 'ground', 'deco')   # public/assets/ 底下的分類
 SRC_EXT = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}
 
 
@@ -2562,11 +2562,11 @@ def src_files():
 
 def asset_manifest():
     files = []
-    for sub in ('pets', 'npcs'):
+    for sub in ART_DIRS:
         d = os.path.join(ASSETS, sub)
         if os.path.isdir(d):
             for fn in sorted(os.listdir(d)):
-                if fn.lower().endswith('.png'):
+                if fn.lower().endswith('.webp'):
                     files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
     return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src_files(),
             'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
@@ -2574,21 +2574,32 @@ def asset_manifest():
             'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}
 
 
-def art_path(name):
-    """去背工具要存的檔名:只接受 pets/<種族>[_動作].png 或 npcs/<NPC 類別>.png,回傳完整路徑或 None"""
-    if not isinstance(name, str) or not name.endswith('.png') or name.count('/') != 1:
-        return None
-    sub, fn = name[:-4].split('/')
+def art_name_ok(sub, fn):
+    """<分類>/<代號> 是不是規格裡的圖 (docs/phase-4/spec.md 第 3 節)"""
+    base, _, frame = fn.partition('_')
     if sub == 'pets':
-        base, _, frame = fn.partition('_')
-        if (base not in SPECIES and base != 'dragon') or (frame and frame not in ART_FRAMES):
-            return None
-    elif sub == 'npcs':
-        if fn not in {n['c'] for n in NPCS}:
-            return None
-    else:
+        return (base in SPECIES or base == 'dragon') and (not frame or frame in ART_FRAMES)
+    if sub == 'owners':   # <職業>-<m|f>[_cast]
+        cls, _, sex = base.partition('-')
+        return cls in CLASSES and sex in ('m', 'f') and (not frame or frame in OWNER_FRAMES)
+    if sub == 'npcs':
+        return fn in {n['c'] for n in NPCS}
+    names = {'items': ITEMS, 'ui': ART_UI, 'ground': ART_GROUND, 'deco': ART_DECO}.get(sub)
+    return names is not None and fn in names
+
+
+def art_path(name):
+    """去背工具要存的檔名:<分類>/<代號>.webp,回傳完整路徑或 None"""
+    if not isinstance(name, str) or not name.endswith('.webp') or name.count('/') != 1:
         return None
-    return os.path.join(ASSETS, sub, fn + '.png')
+    sub, fn = name[:-5].split('/')
+    if not art_name_ok(sub, fn):
+        return None
+    return os.path.join(ASSETS, sub, fn + '.webp')
+
+
+def is_webp(data):
+    return len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WEBP'
 
 
 def save_art(name, data, delete=False):
@@ -2600,8 +2611,8 @@ def save_art(name, data, delete=False):
         if os.path.isfile(full):
             os.remove(full)
         return True, '已刪除 ' + name
-    if not data.startswith(PNG_SIG) or len(data) > ART_MAX_BYTES:
-        return False, '不是 PNG 圖檔,或檔案太大'
+    if not is_webp(data) or len(data) > ART_MAX_BYTES:
+        return False, '不是 WebP 圖檔,或檔案太大'
     os.makedirs(os.path.dirname(full), exist_ok=True)
     tmp = full + '.tmp'
     with open(tmp, 'wb') as f:
@@ -2616,9 +2627,16 @@ def is_local(writer):
     return host in ('127.0.0.1', '::1', '::ffff:127.0.0.1')
 
 
-async def respond(writer, status, ctype, body):
-    writer.write(('HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nCache-Control: no-cache\r\n'
-                  'Connection: close\r\n\r\n' % (status, ctype, len(body))).encode() + body)
+def cache_control(path, query):
+    """圖片網址帶了版本號 (檔案修改時間) 就讓瀏覽器長期快取:圖一換,版本號變了,網址就跟著變"""
+    if path.startswith('/assets/') and 'v' in parse_qs(query):
+        return 'public, max-age=31536000, immutable'
+    return 'no-cache'
+
+
+async def respond(writer, status, ctype, body, cache='no-cache'):
+    writer.write(('HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nCache-Control: %s\r\n'
+                  'Connection: close\r\n\r\n' % (status, ctype, len(body), cache)).encode() + body)
     try:
         await writer.drain()
     except Exception:
@@ -2689,12 +2707,11 @@ async def handle_conn(reader, writer, game):
         path = '/index.html'
     full = os.path.normpath(os.path.join(PUBLIC, path.lstrip('/')))
     if not full.startswith(PUBLIC) or not os.path.isfile(full):
-        body, status, ctype = b'404 Not Found', '404 Not Found', 'text/plain'
-    else:
-        with open(full, 'rb') as f:
-            body = f.read()
-        status, ctype = '200 OK', MIME.get(os.path.splitext(full)[1].lower(), 'application/octet-stream')
-    await respond(writer, status, ctype, body)
+        return await respond(writer, '404 Not Found', 'text/plain', b'404 Not Found')
+    with open(full, 'rb') as f:
+        body = f.read()
+    ctype = MIME.get(os.path.splitext(full)[1].lower(), 'application/octet-stream')
+    await respond(writer, '200 OK', ctype, body, cache_control(path, query))
 
 
 async def main():

@@ -327,7 +327,7 @@ function setLooks(species) { for (const [k, v] of Object.entries(species || {}))
 
 // ============================================================
 //  圖片 (public/assets/):有圖用圖,沒圖退回程式繪圖
-//  規格見 docs/art/美術規格.md:256×256 透明 PNG、腳底貼齊底邊正中央、朝右
+//  規格見 docs/art/美術規格.md:256×256 透明 WebP、腳底貼齊底邊正中央、朝右
 // ============================================================
 const ART = { on: true, imgs: {}, meta: {}, sizes: {}, count: 0, onload: null };
 try { ART.on = localStorage.getItem('fantasia.art') !== 'off'; } catch (e) { /* 沒有 localStorage 也沒關係 */ }
@@ -349,7 +349,7 @@ function loadArt(sizes) {
   return fetch('/assets.json', { cache: 'no-store' }).then(r => r.json()).then(m => {
     ART.sizes = m.art || ART.sizes;
     return Promise.all(m.files.map(f => new Promise(done => {
-      const img = new Image(), key = f.p.replace(/\.png$/i, '');
+      const img = new Image(), key = f.p.replace(/\.webp$/i, '');
       img.onload = () => { ART.imgs[key] = img; ART.meta[key] = measureArt(img); done(); };
       img.onerror = () => done();   // 讀不到就算了,退回程式繪圖
       img.src = '/assets/' + f.p + '?v=' + f.v;

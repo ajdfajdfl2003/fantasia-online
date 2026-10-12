@@ -21,20 +21,21 @@ const T = {
   loaded: '',             // 目前載入的是哪個目標的哪張原圖 (避免重複自動載入)
 };
 const ZH_FRAME = { attack: '攻擊', hurt: '受傷', sleep: '睡著' };
+const WEBP_QUALITY = 0.9;   // 2026-10-11 實測:256×256 成品 PNG 約 85KB,WebP 品質 90 約 14~21KB
 
 // ---------- 目標 (要做哪一張) ----------
 function target() {
   const kind = $('sel-kind').value, id = $('sel-target').value, frame = kind === 'pets' ? $('sel-frame').value : '';
-  const file = `${kind}/${id}${frame ? '_' + frame : ''}.png`;
+  const file = `${kind}/${id}${frame ? '_' + frame : ''}.webp`;
   const art = T.man ? T.man.art : {};
   const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art.npc || {}).size || 72);
-  return { kind, id, frame, file, key: file.replace(/\.png$/, ''), baseKey: `${kind}/${id}`, size, hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0 };
+  return { kind, id, frame, file, key: file.replace(/\.webp$/, ''), baseKey: `${kind}/${id}`, size, hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0 };
 }
 function fillTargets() {
   const kind = $('sel-kind').value, sel = $('sel-target'), names = kind === 'pets' ? T.man.species : T.man.npcs;
   const prev = sel.value;
   sel.innerHTML = Object.entries(names).map(([k, n]) => {
-    const has = T.man.files.some(f => f.p === `${kind}/${k}.png`);
+    const has = T.man.files.some(f => f.p === `${kind}/${k}.webp`);
     const src = findSrc({ kind, id: k, frame: '' });
     return `<option value="${k}">${n}${has ? '  ✔有圖' : ''}${src ? '  · 有原圖' : ''}</option>`;
   }).join('');
@@ -62,7 +63,7 @@ function updateTarget() {
 }
 // 動作圖的大小基準:遊戲裡這隻寵物的主圖 (算出不透明的面積,換算成 256 畫布的單位)
 function loadMainRef(tg) {
-  const f = T.man.files.find(x => x.p === tg.baseKey + '.png');
+  const f = T.man.files.find(x => x.p === tg.baseKey + '.webp');
   if (!f) { T.mainRef = null; delete ART.imgs.cmp; return; }
   const tag = f.p + '?v=' + f.v;
   if (T.mainRef && T.mainRef.tag === tag) return;
@@ -326,7 +327,7 @@ function buildOutput() {
       let area = 0;
       for (let i = 3; i < T.final.length; i += 4) if (T.final[i] > 128) area++;
       k = Math.sqrt(ref.area / Math.max(1, area)) * (+$('fscale').value / 100);
-      note = `已依遊戲裡的主圖(${tg.baseKey}.png)對齊大小`;
+      note = `已依遊戲裡的主圖(${tg.baseKey}.webp)對齊大小`;
     } else note = '遊戲裡還沒有這隻的主圖:先做主圖,動作圖才能自動對齊大小(現在是塞滿畫布)';
   }
   // 動作圖比主圖大時,把畫布放大 (遊戲依圖片寬度等比例畫,大小仍然對齊),而不是把角色縮小
@@ -416,7 +417,7 @@ function refreshOutput() {
     delete ART.imgs[tg.baseKey];
     $('out-cap').textContent = '成品';
   }
-  $('b-save').disabled = $('b-dl').disabled = !T.out;
+  $('b-save').disabled = $('b-dl').disabled = !T.out || T.noWebp;
 }
 function drawPreview(t) {
   const cv = $('pv'), g = cv.getContext('2d'), tg = target(), W = cv.width;
@@ -454,7 +455,11 @@ function drawPreview(t) {
 
 // ---------- 存檔 / 下載 / 刪除 ----------
 function msg(text, err) { const m = $('msg'); m.textContent = text; m.className = err ? 'err' : 'ok'; }
-function outBlob() { return new Promise(r => T.out.toBlob(r, 'image/png')); }
+function outBlob() { return new Promise(r => T.out.toBlob(r, 'image/webp', WEBP_QUALITY)); }
+// Safari 的 canvas 存不了 WebP:toBlob('image/webp') 會靜默變成 PNG,所以實際轉一張小圖看回傳的格式
+function webpSupported() {
+  return new Promise(r => mkCanvas(2, 2).toBlob(b => r(!!b && b.type === 'image/webp'), 'image/webp', WEBP_QUALITY));
+}
 async function refreshManifest() {
   T.man = await fetch('/assets.json', { cache: 'no-store' }).then(r => r.json());
   ART.sizes = T.man.art;
@@ -522,6 +527,10 @@ function bindUI() {
 
 (async function init() {
   bindUI();
+  if (!(await webpSupported())) {
+    T.noWebp = true;
+    $('webp-warn').hidden = false;
+  }
   try { await refreshManifest(); } catch (e) { msg('讀不到 /assets.json,請確認伺服器有在執行。', true); return; }
   ART.on = true;
   fillTargets();

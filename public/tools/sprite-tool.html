@@ -22,6 +22,7 @@
   .fname { margin-top: 4px; color: #9fd0ff; font-family: Consolas, monospace; }
   .note { color: #8a9ac4; font-size: 11px; line-height: 1.5; margin-top: 3px; }
   .warn-box { color: #ffb04a; font-size: 12px; line-height: 1.5; margin-top: 4px; }
+  #webp-warn { margin: 0 0 8px; padding: 8px 12px; border: 1px solid #ff7a6a; background: rgba(255, 90, 70, .15); color: #ffd0c8; font-size: 14px; }
   #drop { border: 2px dashed #6a7aa8; border-radius: 4px; padding: 14px 8px; text-align: center; color: #c8d4f0; cursor: pointer; }
   #drop.over { border-color: #ffd84a; background: rgba(255, 216, 74, .1); }
   .checker { background-color: #fff; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
@@ -42,6 +43,7 @@
 </head>
 <body>
 <h1>去背 / 裁切小工具 <small>把 AI 產生的圖整理成遊戲用的寵物圖(規格見 docs/art/美術規格.md)</small></h1>
+<div id="webp-warn" hidden>這個瀏覽器存不了 WebP 圖檔(Safari 會這樣),「存進遊戲」已停用。請用 Chrome、Edge 或 Firefox 開這個工具。</div>
 <div class="cols">
   <!-- 左:設定 -->
   <div class="panel">
@@ -109,7 +111,7 @@
       </div>
       <div class="btns">
         <button id="b-save" class="big" disabled>存進遊戲</button>
-        <button id="b-dl" disabled>下載 PNG</button>
+        <button id="b-dl" disabled>下載 WebP</button>
         <button id="b-del" disabled>刪除遊戲裡的這張圖</button>
       </div>
       <div id="msg"></div>
