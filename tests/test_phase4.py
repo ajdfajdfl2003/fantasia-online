@@ -38,6 +38,9 @@ def test_art_names():
     frame = ['owners/knight-m_attack.webp', 'owners/priest-f_sleep.webp', 'owners/mage-f_dance.webp']
     check('主人的動作圖不是 cast 拒絕', all(server.art_path(n) is None for n in frame),
           [n for n in frame if server.art_path(n)])
+    trailing = ['owners/mage-f_.webp', 'pets/poring_.webp']
+    check('檔名結尾多一個底線拒絕', all(server.art_path(n) is None for n in trailing),
+          [n for n in trailing if server.art_path(n)])
 
 
 def test_art_save_and_manifest():

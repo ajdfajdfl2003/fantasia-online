@@ -2576,12 +2576,12 @@ def asset_manifest():
 
 def art_name_ok(sub, fn):
     """<分類>/<代號> 是不是規格裡的圖 (docs/phase-4/spec.md 第 3 節)"""
-    base, _, frame = fn.partition('_')
+    base, sep, frame = fn.partition('_')   # 有底線就一定要接動作圖,poring_ 這種不算
     if sub == 'pets':
-        return (base in SPECIES or base == 'dragon') and (not frame or frame in ART_FRAMES)
+        return (base in SPECIES or base == 'dragon') and (not sep or frame in ART_FRAMES)
     if sub == 'owners':   # <職業>-<m|f>[_cast]
         cls, _, sex = base.partition('-')
-        return cls in CLASSES and sex in ('m', 'f') and (not frame or frame in OWNER_FRAMES)
+        return cls in CLASSES and sex in ('m', 'f') and (not sep or frame in OWNER_FRAMES)
     if sub == 'npcs':
         return fn in {n['c'] for n in NPCS}
     names = {'items': ITEMS, 'ui': ART_UI, 'ground': ART_GROUND, 'deco': ART_DECO}.get(sub)
