@@ -2568,7 +2568,9 @@ def asset_manifest():
             for fn in sorted(os.listdir(d)):
                 if fn.lower().endswith('.webp'):
                     files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
-    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src_files(),
+    src = src_files()
+    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src,
+            'srcv': {fn: int(os.path.getmtime(os.path.join(ART_SRC, fn))) for fn in src},   # 批次模式比對「原圖比成品新」
             'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
             'npcs': {n['c']: n['n'] for n in NPCS},
             'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}

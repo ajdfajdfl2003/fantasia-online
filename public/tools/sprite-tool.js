@@ -25,7 +25,10 @@ const WEBP_QUALITY = 0.9;   // 2026-10-11 實測:256×256 成品 PNG 約 85KB,We
 
 // ---------- 目標 (要做哪一張) ----------
 function target() {
-  const kind = $('sel-kind').value, id = $('sel-target').value, frame = kind === 'pets' ? $('sel-frame').value : '';
+  const kind = $('sel-kind').value;
+  return makeTarget(kind, $('sel-target').value, kind === 'pets' ? $('sel-frame').value : '');
+}
+function makeTarget(kind, id, frame) {
   const file = `${kind}/${id}${frame ? '_' + frame : ''}.webp`;
   const art = T.man ? T.man.art : {};
   const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art.npc || {}).size || 72);
@@ -69,16 +72,20 @@ function loadMainRef(tg) {
   if (T.mainRef && T.mainRef.tag === tag) return;
   const img = new Image();
   img.onload = () => {
-    const c = mkCanvas(img.width, img.height), g = c.getContext('2d');
-    g.drawImage(img, 0, 0);
-    const d = g.getImageData(0, 0, img.width, img.height).data;
-    let n = 0;
-    for (let i = 3; i < d.length; i += 4) if (d[i] > 128) n++;
-    T.mainRef = { key: tg.baseKey, tag, area: n * (OUT / img.width) ** 2 };
+    T.mainRef = { key: tg.baseKey, tag, area: opaqueArea(img) };
     ART.imgs.cmp = img; ART.meta.cmp = measureArt(img);
     if (T.src) buildOutput();
   };
   img.src = '/assets/' + tag;
+}
+// 不透明的面積,換算成 256 畫布的單位 (動作圖依這個對齊主圖的大小)
+function opaqueArea(img) {
+  const c = mkCanvas(img.width, img.height), g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, img.width, img.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 128) n++;
+  return n * (OUT / img.width) ** 2;
 }
 function clearWork() {
   T.src = T.auto = T.final = T.out = null;
@@ -105,32 +112,40 @@ function findSrc(tg) {
   return T.man.src.find(f => want.includes(f.replace(/\.[^.]+$/, '').toLowerCase())) || null;
 }
 function loadSrc(name, tg) {
-  T.loaded = tg.file + '|' + name;
+  const key = T.loaded = tg.file + '|' + name;
   fetch('/api/src?f=' + encodeURIComponent(name)).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
-    .then(b => loadFile(new File([b], name, { type: b.type || 'image/png' }), 'art-src/'))
+    .then(b => { if (T.loaded === key) loadFile(new File([b], name, { type: b.type || 'image/png' }), 'art-src/'); })   // 讀到時已經換成別張就不用了
     .catch(() => msg('讀不到 art-src/' + name + '(重開伺服器後再試試)', true));
 }
 
 // ---------- 讀圖 ----------
+// 原圖轉成像素:太大就先縮到 SRC_MAX
+function decodeImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, SRC_MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+      const c = mkCanvas(w, h), g = c.getContext('2d');
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve({ w, h, data: g.getImageData(0, 0, w, h).data, iw: img.width, ih: img.height });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('讀不到這張圖')); };
+    img.src = url;
+  });
+}
 function loadFile(file, from = '') {
   if (!file || !file.type.startsWith('image/')) return msg('這不是圖片檔。', true);
-  const url = URL.createObjectURL(file), img = new Image();
-  img.onload = () => {
-    const k = Math.min(1, SRC_MAX / Math.max(img.width, img.height));
-    const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
-    const c = mkCanvas(w, h), g = c.getContext('2d');
-    g.imageSmoothingQuality = 'high';
-    g.drawImage(img, 0, 0, w, h);
-    T.w = w; T.h = h;
-    T.src = g.getImageData(0, 0, w, h).data;
-    T.edits = new Uint8Array(w * h);
-    $('srcinfo').textContent = `原圖 ${img.width}×${img.height}` + (k < 1 ? `(處理時縮成 ${w}×${h})` : '') + ` · ${from}${file.name || '貼上的圖片'}`;
+  decodeImage(file).then(im => {
+    T.w = im.w; T.h = im.h;
+    T.src = im.data;
+    T.edits = new Uint8Array(im.w * im.h);
+    $('srcinfo').textContent = `原圖 ${im.iw}×${im.ih}` + (im.w < im.iw ? `(處理時縮成 ${im.w}×${im.h})` : '') + ` · ${from}${file.name || '貼上的圖片'}`;
     if (!from) T.loaded = target().file + '|manual';
-    URL.revokeObjectURL(url);
     process();
-  };
-  img.onerror = () => msg('讀不到這張圖。', true);
-  img.src = url;
+  }, () => msg('讀不到這張圖。', true));
 }
 
 // ---------- 去背 ----------
@@ -159,9 +174,8 @@ function borderInfo(d, w, h) {
     && Math.abs(top[0].r / top[0].n - top[1].r / top[1].n) > 20 && Math.max(...col(top[1])) - Math.min(...col(top[1])) < 20;
   return { transparent: transparent / total, bg: col(top[0]) || [255, 255, 255], checker };
 }
-function removeBg(d, w, h, o) {
+function removeBg(d, w, h, o, info) {
   const N = w * h, out = new Uint8ClampedArray(d);
-  const info = T.bgInfo = borderInfo(d, w, h);
   if (info.transparent > 0.6) {   // 原圖已經是透明背景
     for (let i = 0; i < N; i++) if (out[i * 4 + 3] < 10) out[i * 4 + 3] = 0;
     return out;
@@ -239,10 +253,9 @@ const opts = () => ({ tol: +$('tol').value, soft: +$('soft').value, enclosed: $(
   clean: $('clean').checked, cleanPct: +$('clean-pct').value });
 function process() {
   if (!T.src) return;
-  const o = opts();
-  T.auto = removeBg(T.src, T.w, T.h, o);
+  const o = opts(), bi = T.bgInfo = borderInfo(T.src, T.w, T.h);
+  T.auto = removeBg(T.src, T.w, T.h, o, bi);
   if (o.clean) cleanSpecks(T.auto, T.w, T.h, o.cleanPct);
-  const bi = T.bgInfo;
   $('bgwarn').textContent = bi.transparent > 0.6 ? '原圖已經是透明背景,跳過去背。' :
     bi.checker ? '⚠ 邊緣看起來是「畫出來的灰白格子」,不是真的透明。建議請 AI 改用純白背景重畫。' : '';
   applyEdits();
@@ -314,39 +327,48 @@ function downscale(src, dw, dh) {
 }
 function buildOutput() {
   if (!T.final) return;
-  const b = bbox(T.final, T.w, T.h);
-  if (!b) { T.out = null; refreshOutput(); return; }
-  const crop = mkCanvas(b.w, b.h);
-  crop.getContext('2d').putImageData(new ImageData(T.final, T.w, T.h), -b.x0, -b.y0, b.x0, b.y0, b.w, b.h);
-  const pad = +$('pad').value, side = 2, tg = target();
-  const fill = Math.min((OUT - side * 2) / b.w, (OUT - pad) / b.h);   // 塞滿畫布的倍率
-  let k = fill, note = '';
-  if (tg.frame) {   // 動作圖:依「遊戲裡主圖」的面積對齊大小,不要各自塞滿 (不然攻擊、受傷、睡著會忽大忽小)
+  const tg = target();
+  let refArea = 0, note = '';
+  if (tg.frame) {
     const ref = T.mainRef && T.mainRef.key === tg.baseKey ? T.mainRef : null;
-    if (ref) {
-      let area = 0;
-      for (let i = 3; i < T.final.length; i += 4) if (T.final[i] > 128) area++;
-      k = Math.sqrt(ref.area / Math.max(1, area)) * (+$('fscale').value / 100);
-      note = `已依遊戲裡的主圖(${tg.baseKey}.webp)對齊大小`;
-    } else note = '遊戲裡還沒有這隻的主圖:先做主圖,動作圖才能自動對齊大小(現在是塞滿畫布)';
+    refArea = ref ? ref.area : 0;
+    note = ref ? `已依遊戲裡的主圖(${tg.baseKey}.webp)對齊大小` : '遊戲裡還沒有這隻的主圖:先做主圖,動作圖才能自動對齊大小(現在是塞滿畫布)';
+  }
+  const r = composeOut(T.final, T.w, T.h, { pad: +$('pad').value, flip: $('flip').checked, pix: $('pix').checked,
+    colors: +$('colors').value, outline: $('outline').checked, fscale: +$('fscale').value, size: tg.size, frame: tg.frame, refArea });
+  $('fscale-note').textContent = note + (r && r.note ? ';' + r.note : '');
+  T.out = r ? r.out : null;
+  refreshOutput();
+}
+// 去背後的像素 → 成品畫布 (裁切、縮放、置中、腳底對齊、翻轉、像素化)。整張透明回傳 null
+// o.refArea:動作圖要對齊的主圖面積 (opaqueArea);0 就塞滿畫布
+function composeOut(px, w, h, o) {
+  const b = bbox(px, w, h);
+  if (!b) return null;
+  const crop = mkCanvas(b.w, b.h);
+  crop.getContext('2d').putImageData(new ImageData(px, w, h), -b.x0, -b.y0, b.x0, b.y0, b.w, b.h);
+  const side = 2;
+  let k = Math.min((OUT - side * 2) / b.w, (OUT - o.pad) / b.h), note = '';   // 塞滿畫布的倍率
+  if (o.frame && o.refArea) {   // 動作圖:依主圖的面積對齊大小,不要各自塞滿 (不然攻擊、受傷、睡著會忽大忽小)
+    let area = 0;
+    for (let i = 3; i < px.length; i += 4) if (px[i] > 128) area++;
+    k = Math.sqrt(o.refArea / Math.max(1, area)) * (o.fscale / 100);
   }
   // 動作圖比主圖大時,把畫布放大 (遊戲依圖片寬度等比例畫,大小仍然對齊),而不是把角色縮小
   let C = OUT;
-  const needW = b.w * k + side * 2, needH = b.h * k + pad;
-  if (tg.frame && (needW > OUT || needH > OUT)) {
+  const needW = b.w * k + side * 2, needH = b.h * k + o.pad;
+  if (o.frame && (needW > OUT || needH > OUT)) {
     C = Math.min(512, Math.ceil(Math.max(needW, needH)));
-    if (C === 512) k = Math.min(k, (512 - side * 2) / b.w, (512 - pad) / b.h);
-    note += `;這張比主圖大,畫布放大成 ${C}×${C}`;
+    if (C === 512) k = Math.min(k, (512 - side * 2) / b.w, (512 - o.pad) / b.h);
+    note = `這張比主圖大,畫布放大成 ${C}×${C}`;
   }
-  $('fscale-note').textContent = note;
   const fit = downscale(crop, b.w * k, b.h * k);
   let out = mkCanvas(C, C);
   const g = out.getContext('2d');
-  if ($('flip').checked) { g.translate(C, 0); g.scale(-1, 1); }
+  if (o.flip) { g.translate(C, 0); g.scale(-1, 1); }
   g.drawImage(fit, Math.round((C - fit.width) / 2), C - fit.height);
-  if ($('pix').checked) out = pixelate(out, Math.max(8, Math.round(target().size / 2 * C / OUT)), +$('colors').value, $('outline').checked);
-  T.out = out;
-  refreshOutput();
+  if (o.pix) out = pixelate(out, Math.max(8, Math.round(o.size / 2 * C / OUT)), o.colors, o.outline);
+  return { out, note };
 }
 
 // ---------- 像素化:縮小、透明度二值化、減色 (median cut)、加外框 ----------
@@ -455,7 +477,8 @@ function drawPreview(t) {
 
 // ---------- 存檔 / 下載 / 刪除 ----------
 function msg(text, err) { const m = $('msg'); m.textContent = text; m.className = err ? 'err' : 'ok'; }
-function outBlob() { return new Promise(r => T.out.toBlob(r, 'image/webp', WEBP_QUALITY)); }
+function webpBlob(cv) { return new Promise(r => cv.toBlob(r, 'image/webp', WEBP_QUALITY)); }
+function outBlob() { return webpBlob(T.out); }
 // Safari 的 canvas 存不了 WebP:toBlob('image/webp') 會靜默變成 PNG,所以實際轉一張小圖看回傳的格式
 function webpSupported() {
   return new Promise(r => mkCanvas(2, 2).toBlob(b => r(!!b && b.type === 'image/webp'), 'image/webp', WEBP_QUALITY));
@@ -464,6 +487,8 @@ async function refreshManifest() {
   T.man = await fetch('/assets.json', { cache: 'no-store' }).then(r => r.json());
   ART.sizes = T.man.art;
   setLooks(T.man.looks);   // 進化型態沒有圖時的樣子 (程式繪圖預覽用)
+  const n = batchList().length;
+  $('m-batch').textContent = n ? `批次(${n} 張還沒處理)` : '批次';
 }
 async function save() {
   if (!T.out) return;
@@ -488,6 +513,143 @@ async function del() {
   const res = await fetch('/api/art?del=1&f=' + encodeURIComponent(tg.file), { method: 'POST' }).then(r => r.json());
   msg(res.msg, !res.ok);
   await refreshManifest(); fillTargets();
+}
+
+// ---------- 批次模式:art-src/ 裡還沒處理的原圖一次去背,一鍵存進遊戲 (spec 第 4.3 節) ----------
+const B = { items: [], busy: false };
+const ITEM_STATE = { wait: '等待去背', ready: '可以存', saved: '已存進遊戲' };
+// 批次一律用預設值 (HTML 上寫的初始值),單張模式調過的滑桿不影響批次
+function defaultOpts() {
+  const v = id => +$(id).defaultValue, c = id => $(id).defaultChecked;
+  return { tol: v('tol'), soft: v('soft'), enclosed: c('enclosed'), clean: c('clean'), cleanPct: v('clean-pct'),
+    pad: v('pad'), flip: c('flip'), pix: c('pix'), colors: v('colors'), outline: c('outline'), fscale: v('fscale') };
+}
+// 原圖檔名 (不含副檔名、小寫) → 對到哪一張成品:把每個目標接受的原圖檔名 (srcNames) 反過來查
+function srcTargets() {
+  const map = new Map();
+  const add = tg => { for (const n of srcNames(tg)) if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), tg); };
+  for (const id of Object.keys(T.man.species)) for (const frame of ['', ...T.man.frames]) add(makeTarget('pets', id, frame));
+  for (const id of Object.keys(T.man.npcs)) add(makeTarget('npcs', id, ''));
+  return map;
+}
+function failItem(it, why) { it.state = 'err'; it.why = why; it.out = null; }
+// 要列出的原圖:檔名對不上的、還沒有成品的、原圖比成品新的。主圖排前面,動作圖才對得到同一批的主圖
+function batchList() {
+  const map = srcTargets(), used = new Map(), items = [];
+  for (const f of T.man.src) {
+    const v = (T.man.srcv || {})[f] || 0, tg = map.get(f.replace(/\.[^.]+$/, '').toLowerCase()) || null;
+    const it = { src: f, v, tg, state: 'wait', why: '', out: null };
+    if (!tg) failItem(it, '檔名對不上任何一張圖');
+    else {
+      const cur = T.man.files.find(x => x.p === tg.file);
+      if (cur && cur.v >= v) continue;   // 成品比原圖新:處理過了
+      if (used.has(tg.file)) failItem(it, `跟 art-src/${used.get(tg.file)} 對到同一張圖`);
+      else used.set(tg.file, f);
+    }
+    items.push(it);
+  }
+  const order = it => !it.tg ? 2 : it.tg.frame ? 1 : 0;
+  return items.sort((a, b) => order(a) - order(b));
+}
+function gameMainArea(tg) {
+  const f = T.man.files.find(x => x.p === tg.baseKey + '.webp');
+  if (!f) return Promise.resolve(0);
+  return new Promise(r => {
+    const img = new Image();
+    img.onload = () => r(opaqueArea(img));
+    img.onerror = () => r(0);
+    img.src = `/assets/${f.p}?v=${f.v}`;
+  });
+}
+async function batchOne(it, mains, o) {
+  let im;
+  try {
+    const blob = await fetch('/api/src?f=' + encodeURIComponent(it.src)).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); });
+    im = await decodeImage(blob);
+  } catch (e) { return failItem(it, '讀不到這張原圖(重開伺服器後再試試)'); }
+  const info = borderInfo(im.data, im.w, im.h);
+  if (info.transparent <= 0.6 && info.checker) return failItem(it, '灰白格子背景(假透明):請 AI 改用純白背景重畫');
+  const px = removeBg(im.data, im.w, im.h, o, info);
+  if (o.clean) cleanSpecks(px, im.w, im.h, o.cleanPct);
+  let refArea = 0;
+  if (it.tg.frame) {   // 同一批做出來的主圖優先 (比遊戲裡的新)
+    refArea = mains[it.tg.baseKey] || await gameMainArea(it.tg);
+    if (!refArea) return failItem(it, '遊戲裡和這一批裡都沒有這隻的主圖:先做主圖');
+  }
+  const r = composeOut(px, im.w, im.h, { ...o, size: it.tg.size, frame: it.tg.frame, refArea });
+  if (!r) return failItem(it, '去背之後什麼都沒剩');
+  it.out = r.out; it.state = 'ready';
+  if (!it.tg.frame) mains[it.tg.key] = opaqueArea(r.out);
+}
+async function runBatch() {
+  B.busy = true;
+  B.items = batchList();
+  drawBatch();
+  const mains = {}, o = defaultOpts();
+  for (let i = 0; i < B.items.length; i++) {
+    const it = B.items[i];
+    $('batch-sum').textContent = `去背中 ${i + 1} / ${B.items.length}…`;
+    if (it.state === 'wait') await batchOne(it, mains, o);
+    drawBatch();
+    await new Promise(r => setTimeout(r));   // 讓畫面有機會更新
+  }
+  B.busy = false;
+  drawBatch();
+}
+async function saveBatch() {
+  B.busy = true;
+  drawBatch();
+  for (const it of B.items.filter(x => x.state === 'ready')) {
+    try {
+      const res = await fetch('/api/art?f=' + encodeURIComponent(it.tg.file), { method: 'POST', body: await webpBlob(it.out) }).then(r => r.json());
+      if (res.ok) it.state = 'saved'; else failItem(it, res.msg);
+    } catch (e) { failItem(it, '存檔失敗:' + e); }
+    drawBatch();
+  }
+  B.busy = false;
+  try { await refreshManifest(); } catch (e) { /* 清單讀不到不影響已經存好的圖,下次重新整理就好 */ }
+  drawBatch();
+}
+function typeLabel(tg) {
+  if (tg.kind === 'pets') return `寵物 ${T.man.species[tg.id]} · ${tg.frame ? ZH_FRAME[tg.frame] : '主圖'}`;
+  return 'NPC ' + T.man.npcs[tg.id];
+}
+function drawBatch() {
+  const grid = $('batch-grid'), items = B.items;
+  grid.innerHTML = items.length ? '' : '<div class="empty-hint">art-src/ 裡沒有還沒處理的原圖。</div>';
+  for (const it of items) {
+    const fig = document.createElement('figure'), cv = mkCanvas(128, 128);
+    fig.className = 'bitem ' + it.state;
+    cv.className = 'checker';
+    if (it.out) cv.getContext('2d').drawImage(it.out, 0, 0, 128, 128);
+    fig.appendChild(cv);
+    const line = (text, cls) => { const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls; fig.appendChild(d); };
+    line(it.tg ? it.tg.key : '?', 'code');
+    line(it.tg ? typeLabel(it.tg) : '認不出是哪一張');
+    line('art-src/' + it.src, 'src');
+    line(it.state === 'err' ? it.why : ITEM_STATE[it.state], 'st');
+    if (it.tg) { fig.title = '點一下進單張模式修這張'; fig.onclick = () => { if (!B.busy) openSingle(it.tg); }; }
+    grid.appendChild(fig);
+  }
+  const cnt = s => items.filter(x => x.state === s).length;
+  if (!B.busy) $('batch-sum').textContent = items.length ? `共 ${items.length} 張:可以存 ${cnt('ready')}、已存進遊戲 ${cnt('saved')}、標紅 ${cnt('err')}` : '';
+  $('b-save-all').disabled = B.busy || T.noWebp || !cnt('ready');
+  $('b-rescan').disabled = B.busy;
+}
+function setMode(batch) {
+  $('single').hidden = batch;
+  $('batch').hidden = !batch;
+  $('m-single').classList.toggle('on', !batch);
+  $('m-batch').classList.toggle('on', batch);
+  if (batch && !B.busy) refreshManifest().then(runBatch, () => msg('讀不到 /assets.json,請確認伺服器有在執行。', true));
+}
+function openSingle(tg) {
+  setMode(false);
+  $('sel-kind').value = tg.kind;
+  fillTargets();
+  $('sel-target').value = tg.id;
+  $('sel-frame').value = tg.frame;
+  updateTarget();
 }
 
 // ---------- 介面 ----------
@@ -523,6 +685,10 @@ function bindUI() {
   $('b-save').onclick = save;
   $('b-dl').onclick = download;
   $('b-del').onclick = del;
+  $('m-single').onclick = () => setMode(false);
+  $('m-batch').onclick = () => setMode(true);
+  $('b-rescan').onclick = () => setMode(true);
+  $('b-save-all').onclick = saveBatch;
 }
 
 (async function init() {

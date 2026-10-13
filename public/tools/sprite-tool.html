@@ -39,12 +39,39 @@
   #msg { margin-top: 6px; min-height: 18px; line-height: 1.5; }
   #msg.ok { color: #8aff9a; } #msg.err { color: #ff7a6a; }
   .empty-hint { padding: 40px 10px; text-align: center; color: #6a7aa8; }
+  .modes { display: flex; gap: 6px; margin-bottom: 8px; }
+  .modes button.on { background: linear-gradient(180deg, #ffe890, #e0b030); }
+  #batch-sum { margin: 6px 0; color: #e8e8e8; min-height: 18px; }
+  #batch-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .bitem { margin: 0; width: 150px; padding: 5px; border: 2px solid #3a4468; border-radius: 4px; color: #c8d4f0;
+    font-size: 11px; line-height: 1.5; text-align: center; word-break: break-all; }
+  .bitem[title] { cursor: pointer; }
+  .bitem canvas { display: block; width: 128px; height: 128px; margin: 0 auto 4px; border: 1px solid #000; }
+  .bitem .code { color: #9fd0ff; font-family: Consolas, monospace; }
+  .bitem .src { color: #8a9ac4; }
+  .bitem.err { border-color: #ff5a46; background: rgba(255, 90, 70, .12); }
+  .bitem.err .st { color: #ff7a6a; }
+  .bitem.saved { border-color: #5ad46a; }
+  .bitem.saved .st { color: #8aff9a; }
 </style>
 </head>
 <body>
 <h1>去背 / 裁切小工具 <small>把 AI 產生的圖整理成遊戲用的寵物圖(規格見 docs/art/美術規格.md)</small></h1>
 <div id="webp-warn" hidden>這個瀏覽器存不了 WebP 圖檔(Safari 會這樣),「存進遊戲」已停用。請用 Chrome、Edge 或 Firefox 開這個工具。</div>
-<div class="cols">
+<div class="modes"><button id="m-single" class="on">單張</button><button id="m-batch">批次</button></div>
+<div class="panel" id="batch" hidden>
+  <div class="title"><span>批次:art-src/ 裡還沒處理的原圖</span></div>
+  <div class="body">
+    <div class="btns">
+      <button id="b-save-all" class="big" disabled>全部存進遊戲</button>
+      <button id="b-rescan">重新整理清單</button>
+    </div>
+    <div id="batch-sum"></div>
+    <div class="note">列出還沒有成品、或原圖比成品新的原圖,一律用預設的去背設定。標紅的不會存;要調容許值、筆刷、翻轉,點縮圖進單張模式修。</div>
+    <div id="batch-grid"></div>
+  </div>
+</div>
+<div class="cols" id="single">
   <!-- 左:設定 -->
   <div class="panel">
     <div class="title"><span>設定</span></div>

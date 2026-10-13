@@ -69,6 +69,23 @@ def test_art_save_and_manifest():
         server.ASSETS = orig
 
 
+def test_src_mtime():
+    print('\n[原圖清單附修改時間 (批次模式判斷「原圖比成品新」)]')
+    orig = server.ART_SRC
+    server.ART_SRC = os.path.join(T.TMP, 'art-src')
+    os.makedirs(server.ART_SRC, exist_ok=True)
+    try:
+        for fn, t in (('野狼.png', 1760000000), ('噗噗_攻擊.jpg', 1760000500), ('notes.txt', 1760000900)):
+            path = os.path.join(server.ART_SRC, fn)
+            open(path, 'wb').write(b'x')
+            os.utime(path, (t, t))
+        m = server.asset_manifest()
+        check('清單附上每張原圖的修改時間,不列非圖片檔', m.get('srcv') == {'野狼.png': 1760000000, '噗噗_攻擊.jpg': 1760000500},
+              m.get('srcv'))
+    finally:
+        server.ART_SRC = orig
+
+
 def test_cache_control():
     print('\n[快取標頭]')
     long_cache = 'public, max-age=31536000, immutable'
@@ -83,6 +100,7 @@ def test_cache_control():
 def main():
     test_art_names()
     test_art_save_and_manifest()
+    test_src_mtime()
     test_cache_control()
     passed = sum(r for _, r in T.results)
     print('\n%d/%d 通過' % (passed, len(T.results)))
