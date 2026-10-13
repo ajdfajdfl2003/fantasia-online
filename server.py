@@ -24,7 +24,7 @@ import time
 import traceback
 from urllib.parse import parse_qs, unquote
 
-from game_data import (ART, ART_DECO, ART_FRAMES, ART_GROUND, ART_UI, BOSS, BREED, BREED_HINTS, CARE, CLASSES,
+from game_data import (ART, ART_DECO, ART_FRAME_NAMES, ART_FRAMES, ART_GROUND, ART_UI, BOSS, BREED, BREED_HINTS, CARE, CLASSES,
                        EGG_SHOP, ELEMENTS, ENCOUNTER_MIN_STEPS, ENCOUNTER_RATE, EVOLVE, EXCLUSIVE, FOODS, HATCH_HINTS,
                        HATCH_TIME, HATCH_WARMUP, HYBRIDS, INTERACT, ITEMS, OWNER_FRAMES, PET_SKILLS, ROAD_ENCOUNTER,
                        SHOP_ITEMS, SKILL_TIERS, SPECIES, STATUS_NAMES, TASTE, TASTE_NAMES, WEATHER, WILD_POWER,
@@ -2560,7 +2560,8 @@ def src_files():
                   if os.path.splitext(fn)[1].lower() in SRC_EXT and os.path.isfile(os.path.join(ART_SRC, fn)))
 
 
-def asset_manifest():
+def asset_manifest(catalog=False):
+    """catalog:工具頁 (去背工具、美術進度表) 才要的完整圖片清單,約 38KB,遊戲登入時讀的不帶"""
     files = []
     for sub in ART_DIRS:
         d = os.path.join(ASSETS, sub)
@@ -2569,11 +2570,50 @@ def asset_manifest():
                 if fn.lower().endswith('.webp'):
                     files.append({'p': sub + '/' + fn, 'v': int(os.path.getmtime(os.path.join(d, fn)))})
     src = src_files()
-    return {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src,
-            'srcv': {fn: int(os.path.getmtime(os.path.join(ART_SRC, fn))) for fn in src},   # 批次模式比對「原圖比成品新」
-            'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
-            'npcs': {n['c']: n['n'] for n in NPCS},
-            'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}
+    m = {'files': files, 'art': ART, 'frames': list(ART_FRAMES), 'src': src,
+         'srcv': {fn: int(os.path.getmtime(os.path.join(ART_SRC, fn))) for fn in src},   # 批次模式比對「原圖比成品新」
+         'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
+         'npcs': {n['c']: n['n'] for n in NPCS},
+         'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}
+    if catalog:
+        m.update(catalog=art_catalog(), frameNames=ART_FRAME_NAMES)
+    return m
+
+
+def art_catalog():
+    """所有要畫的圖 (spec 第 1、3、5 節),美術進度表與去背工具共用。
+    p 成品路徑、k 分類、id 代號、f 動作圖、g 進度表的分組 (_opt 結尾是可有可無)、name 中文名、
+    src art-src/ 裡接受的原圖檔名 (不含副檔名):中文名或代號,動作圖接 _攻擊 或 _attack"""
+    out = []
+
+    def add(k, code, frame, group, name, bases):
+        src = []
+        for b in bases:
+            src += [b + '_' + ART_FRAME_NAMES[frame], b + '_' + frame] if frame else [b]
+        out.append({'p': '%s/%s%s.webp' % (k, code, '_' + frame if frame else ''), 'k': k, 'id': code, 'f': frame,
+                    'g': group, 'name': name, 'src': list(dict.fromkeys(src))})
+
+    lines = {}
+    for v in SPECIES.values():   # 同一條進化線排在一起
+        lines.setdefault(v['line'], len(lines))
+    pets = sorted(SPECIES, key=lambda c: (lines[SPECIES[c]['line']], SPECIES[c]['stage'])) + ['dragon']
+    for code in pets:
+        name = BOSS['name'] if code == 'dragon' else SPECIES[code]['name']
+        add('pets', code, '', 'pet', name, [name, code])
+        for fr in ART_FRAMES:   # 初階與炎龍的動作圖是必要的,中高階的可有可無
+            add('pets', code, fr, 'frame' if code == 'dragon' or SPECIES[code]['stage'] == 0 else 'frame_opt', name, [name, code])
+    for frame, group in (('', 'owner'), ('cast', 'owner_opt')):
+        for cls, c in CLASSES.items():
+            for sex, zh in (('m', '男'), ('f', '女')):
+                add('owners', cls + '-' + sex, frame, group, zh + c['name'], [zh + c['name'], cls + '-' + sex])
+    for n in NPCS:   # 原圖可以叫「村長 艾倫」或「艾倫」
+        add('npcs', n['c'], '', 'npc', n['n'], [n['n'], n['n'].split(' ')[-1], n['c']])
+    for code, it in ITEMS.items():
+        add('items', code, '', 'item', it['name'], [it['name'], code])
+    for k, table in (('ui', ART_UI), ('ground', ART_GROUND), ('deco', ART_DECO)):
+        for code, zh in table.items():
+            add(k, code, '', k, zh, [zh, code])
+    return out
 
 
 def art_name_ok(sub, fn):
@@ -2682,7 +2722,7 @@ async def handle_conn(reader, writer, game):
     path, _, query = path.partition('?')
     path = unquote(path)
     if path == '/assets.json':
-        body = json.dumps(asset_manifest(), ensure_ascii=False).encode('utf-8')
+        body = json.dumps(asset_manifest('catalog' in parse_qs(query)), ensure_ascii=False).encode('utf-8')
         return await respond(writer, '200 OK', MIME['.json'], body)
     if path == '/api/src':   # 去背工具讀 art-src/ 裡的原圖 (只接受本機、只能讀清單裡的檔案)
         name = parse_qs(query).get('f', [''])[0]

@@ -20,7 +20,7 @@ const T = {
   bgInfo: null,
   loaded: '',             // 目前載入的是哪個目標的哪張原圖 (避免重複自動載入)
 };
-const ZH_FRAME = { attack: '攻擊', hurt: '受傷', sleep: '睡著' };
+const KIND_NAMES = { pets: '寵物', owners: '主人', npcs: 'NPC', items: '道具', ui: '登入畫面', ground: '地面材質', deco: '樹與裝飾' };
 const WEBP_QUALITY = 0.9;   // 2026-10-11 實測:256×256 成品 PNG 約 85KB,WebP 品質 90 約 14~21KB
 
 // ---------- 目標 (要做哪一張) ----------
@@ -95,16 +95,11 @@ function clearWork() {
   $('srcinfo').textContent = '';
   refreshOutput();
 }
-// art-src/ 裡的原圖:檔名用中文名字 (噗噗.png、噗噗_攻擊.png),也接受英文代號 (poring.png、poring_attack.png)
+// art-src/ 裡的原圖:檔名用中文名字 (噗噗.png、噗噗_攻擊.png),也接受英文代號 (poring.png、poring_attack.png)。
+// 接受哪些檔名由伺服器的圖片清單 (catalog) 列好,美術進度表也用同一份
 function srcNames(tg) {
-  const zh = tg.kind === 'pets' ? T.man.species[tg.id] : T.man.npcs[tg.id];
-  const bases = [zh, (zh || '').split(' ').pop(), tg.id].filter(Boolean);
-  const out = [];
-  for (const b of bases) {
-    out.push(b + (tg.frame ? '_' + (ZH_FRAME[tg.frame] || tg.frame) : ''));
-    if (tg.frame) out.push(b + '_' + tg.frame);
-  }
-  return out;
+  const e = T.cat.get(tg.file);
+  return e ? e.src : [tg.id];
 }
 function findSrc(tg) {
   if (!T.man || !T.man.src) return null;
@@ -484,7 +479,8 @@ function webpSupported() {
   return new Promise(r => mkCanvas(2, 2).toBlob(b => r(!!b && b.type === 'image/webp'), 'image/webp', WEBP_QUALITY));
 }
 async function refreshManifest() {
-  T.man = await fetch('/assets.json', { cache: 'no-store' }).then(r => r.json());
+  T.man = await fetch('/assets.json?catalog=1', { cache: 'no-store' }).then(r => r.json());
+  T.cat = new Map(T.man.catalog.map(e => [e.p, e]));
   ART.sizes = T.man.art;
   setLooks(T.man.looks);   // 進化型態沒有圖時的樣子 (程式繪圖預覽用)
   const n = batchList().length;
@@ -524,18 +520,16 @@ function defaultOpts() {
   return { tol: v('tol'), soft: v('soft'), enclosed: c('enclosed'), clean: c('clean'), cleanPct: v('clean-pct'),
     pad: v('pad'), flip: c('flip'), pix: c('pix'), colors: v('colors'), outline: c('outline'), fscale: v('fscale') };
 }
-// 原圖檔名 (不含副檔名、小寫) → 對到哪一張成品:把每個目標接受的原圖檔名 (srcNames) 反過來查
+// 原圖檔名 (不含副檔名、小寫) → 對到哪一張成品:把圖片清單裡每張圖接受的原圖檔名反過來查
 function srcTargets() {
   const map = new Map();
-  const add = tg => { for (const n of srcNames(tg)) if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), tg); };
-  for (const id of Object.keys(T.man.species)) for (const frame of ['', ...T.man.frames]) add(makeTarget('pets', id, frame));
-  for (const id of Object.keys(T.man.npcs)) add(makeTarget('npcs', id, ''));
+  for (const e of T.man.catalog) for (const n of e.src) if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), makeTarget(e.k, e.id, e.f));
   return map;
 }
 function failItem(it, why) { it.state = 'err'; it.why = why; it.out = null; }
 // 要列出的原圖:檔名對不上的、還沒有成品的、原圖比成品新的。主圖排前面,動作圖才對得到同一批的主圖
 function batchList() {
-  const map = srcTargets(), used = new Map(), items = [];
+  const map = srcTargets(), used = new Map(), items = [], kinds = toolKinds();
   for (const f of T.man.src) {
     const v = (T.man.srcv || {})[f] || 0, tg = map.get(f.replace(/\.[^.]+$/, '').toLowerCase()) || null;
     const it = { src: f, v, tg, state: 'wait', why: '', out: null };
@@ -543,7 +537,8 @@ function batchList() {
     else {
       const cur = T.man.files.find(x => x.p === tg.file);
       if (cur && cur.v >= v) continue;   // 成品比原圖新:處理過了
-      if (used.has(tg.file)) failItem(it, `跟 art-src/${used.get(tg.file)} 對到同一張圖`);
+      if (!kinds.includes(tg.kind)) failItem(it, `去背工具還沒支援${KIND_NAMES[tg.kind]}圖`);
+      else if (used.has(tg.file)) failItem(it, `跟 art-src/${used.get(tg.file)} 對到同一張圖`);
       else used.set(tg.file, f);
     }
     items.push(it);
@@ -611,9 +606,10 @@ async function saveBatch() {
   drawBatch();
 }
 function typeLabel(tg) {
-  if (tg.kind === 'pets') return `寵物 ${T.man.species[tg.id]} · ${tg.frame ? ZH_FRAME[tg.frame] : '主圖'}`;
-  return 'NPC ' + T.man.npcs[tg.id];
+  const e = T.cat.get(tg.file), frame = tg.frame ? T.man.frameNames[tg.frame] : tg.kind === 'pets' ? '主圖' : '';
+  return `${KIND_NAMES[tg.kind]} ${e ? e.name : tg.id}${frame ? ' · ' + frame : ''}`;
 }
+const toolKinds = () => [...$('sel-kind').options].map(o => o.value);   // 單張模式選得到的類型 = 去背工具支援的類型
 function drawBatch() {
   const grid = $('batch-grid'), items = B.items;
   grid.innerHTML = items.length ? '' : '<div class="empty-hint">art-src/ 裡沒有還沒處理的原圖。</div>';
@@ -628,7 +624,7 @@ function drawBatch() {
     line(it.tg ? typeLabel(it.tg) : '認不出是哪一張');
     line('art-src/' + it.src, 'src');
     line(it.state === 'err' ? it.why : ITEM_STATE[it.state], 'st');
-    if (it.tg) { fig.title = '點一下進單張模式修這張'; fig.onclick = () => { if (!B.busy) openSingle(it.tg); }; }
+    if (it.tg && toolKinds().includes(it.tg.kind)) { fig.title = '點一下進單張模式修這張'; fig.onclick = () => { if (!B.busy) openSingle(it.tg); }; }
     grid.appendChild(fig);
   }
   const cnt = s => items.filter(x => x.state === s).length;

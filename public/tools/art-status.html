@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>美術進度表 — 幻想之境 Online</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  html, body { overflow: auto; user-select: auto; background: #0b0f1c; }
+  body { padding: 10px; color: #e8e8e8; }
+  h1 { margin: 0 0 8px; font-size: 18px; color: #ffd84a; text-shadow: 1px 1px 0 #000; letter-spacing: 1px; }
+  h1 small { font-size: 12px; color: #9aa8cc; font-weight: normal; margin-left: 8px; }
+  h1 a { font-size: 12px; font-weight: normal; color: #9fd0ff; margin-left: 10px; }
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend { display: flex; gap: 10px; align-items: center; color: #c8d4f0; font-size: 12px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 2px; vertical-align: -3px; margin-right: 3px; }
+  #msg { color: #ff7a6a; }
+  #sum { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip { padding: 3px 8px; border: 1px solid #3a4468; border-radius: 3px; background: rgba(40, 54, 96, .6); font-size: 13px; }
+  .chip b { color: #ffd84a; }
+  .chip .s { color: #ffe8a8; font-size: 11px; }
+  .chip.opt { opacity: .7; }
+  .chip.all { border-color: #c9a95c; }
+  .panel { margin-bottom: 10px; }
+  .panel .note { color: #8a9ac4; font-size: 11px; margin-bottom: 6px; }
+  .line, .cellgrid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .card { border: 1px solid #3a4468; border-radius: 3px; padding: 4px 6px; background: rgba(20, 26, 50, .6); }
+  .card > b { display: block; color: #ffe8a8; font-size: 12px; margin-bottom: 2px; }
+  .card .cells { display: flex; gap: 4px; }
+  .cell { width: 60px; text-align: center; font-size: 11px; line-height: 1.4; color: #c8d4f0; }
+  .cellgrid .cell { width: 76px; }
+  .cell .box { width: 52px; height: 52px; margin: 0 auto 1px; border: 2px solid #3a4468; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center; color: #6a7aa8; overflow: hidden; }
+  .cellgrid .cell .box { width: 64px; height: 64px; }
+  .cell .box img { max-width: 100%; max-height: 100%; }
+  .cell.done .box { border-color: #5ad46a; }
+  .cell.src .box { border-color: #e0b030; color: #ffe8a8; background: rgba(224, 176, 48, .14); }
+  .cell.opt.miss .box { border-style: dashed; opacity: .55; }
+  .cell .newer { color: #ffb04a; }
+  .checker { background-color: #fff; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 12px 12px; background-position: 0 0, 0 6px, 6px -6px, -6px 0; }
+  .unmatched { color: #ffb0a0; font-family: Consolas, monospace; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1>美術進度表 <small>每張要畫的圖現在的狀態(規格見 docs/phase-4/spec.md 第 5 節)</small><a href="sprite-tool.html">去背工具 →</a></h1>
+<div class="toolbar">
+  <button id="b-reload">重新整理</button>
+  <div class="legend">
+    <span><i style="border-color:#5ad46a"></i>已進遊戲</span>
+    <span><i style="border-color:#e0b030;background:rgba(224,176,48,.14)"></i>有原圖還沒處理</span>
+    <span><i style="border-color:#3a4468"></i>還缺</span>
+    <span><i style="border-color:#3a4468;border-style:dashed;opacity:.55"></i>還缺(可有可無)</span>
+  </div>
+  <span id="msg"></span>
+</div>
+<div id="sum"></div>
+<div id="sections"></div>
+<script src="art-status.js"></script>
+</body>
+</html>

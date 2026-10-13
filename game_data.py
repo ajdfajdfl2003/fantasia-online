@@ -517,6 +517,7 @@ for _k, _sp in SPECIES.items():   # 進化型態:初階的大小 × 1.15 / × 1.
         ART[_k] = dict(ART[_sp['line']], size=int(round(ART[_sp['line']]['size'] * _sp['look']['scale'])))
 ART_FRAMES = ('attack', 'hurt', 'sleep')   # 可有可無的動作圖:<種族>_attack.webp …
 OWNER_FRAMES = ('cast',)                   # 主人可有可無的動作圖:<職業>-<m|f>_cast.webp
+ART_FRAME_NAMES = {'attack': '攻擊', 'hurt': '受傷', 'sleep': '睡著', 'cast': '施法'}   # 原圖檔名用中文:噗噗_攻擊.png
 # 其他圖片的代號 → art-src/ 裡原圖的中文檔名
 ART_UI = {'login': '登入畫面', 'logo': 'Logo'}
 ART_GROUND = {'grass': '地面_草地', 'dark': '地面_森林草地', 'sand': '地面_沙路', 'stone': '地面_村莊石板',
