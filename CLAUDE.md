@@ -11,8 +11,9 @@
 - 第四階段(美術升級)的 `docs/phase-4/spec.md`、`plan.md` 已寫好(2026-10-13),分支 `feature/phase-4-art`。
   討論與被否決的方案在 `docs/phase-4/討論紀錄.md`。
 - plan 第 1 項(WebP 管線)、第 2 項(`tests/test_phase4.py` 第一部分)已完成(2026-10-13),
-  第 3 項(去背工具批次模式)已完成(2026-10-14)。
-- **下次開工**:讀 `spec.md` 和 `plan.md`,從 plan 第 4 項(美術進度表 `public/tools/art-status.html`)開始。
+  第 3 項(去背工具批次模式)、第 4 項(美術進度表)已完成(2026-10-14)。
+  使用者可以開始產第 1 批(野外與 BOSS 主圖 10 張,prompt 在 `docs/art/繪圖prompt.md`)。
+- **下次開工**:讀 `spec.md` 和 `plan.md`,從 plan 第 5 項(主人性別與主人圖)開始。
 
 ## 開發流程(使用者訂的守則,每次都要遵守)
 
@@ -51,7 +52,7 @@
 server.py          伺服器:HTTP + WebSocket + 遊戲邏輯(移動、戰鬥、捕捉、孵蛋、NPC、存檔)
 game_data.py       遊戲數值表
 start.bat          Windows 雙擊啟動
-public/            客戶端(index.html、style.css、*.js);public/tools/ 是去背工具
+public/            客戶端(index.html、style.css、*.js);public/tools/ 是去背工具與美術進度表
 public/assets/     遊戲用的圖片成品(進 git)
 art-src/           使用者用 AI 產的原圖(不進 git,見 docs/art/美術規格.md)
 tests/             無頭模擬測試(直接呼叫伺服器邏輯,用假時鐘快轉);debug_server.py 是除錯伺服器
