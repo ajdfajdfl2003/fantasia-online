@@ -10,8 +10,9 @@
 
 - 第四階段(美術升級)的 `docs/phase-4/spec.md`、`plan.md` 已寫好(2026-10-13),分支 `feature/phase-4-art`。
   討論與被否決的方案在 `docs/phase-4/討論紀錄.md`。
-- plan 第 1 項(WebP 管線)已完成(2026-10-13)。
-- **下次開工**:讀 `spec.md` 和 `plan.md`,從 plan 第 2 項(`tests/test_phase4.py` 第一部分)開始。
+- plan 第 1 項(WebP 管線)、第 2 項(`tests/test_phase4.py` 第一部分)已完成(2026-10-13)。
+  第 2 項發現的「檔名結尾多一個底線會被接受」還沒修,等使用者決定(見 plan 第 2 項的結果)。
+- **下次開工**:讀 `spec.md` 和 `plan.md`,從 plan 第 3 項(去背工具批次模式)開始。
 
 ## 開發流程(使用者訂的守則,每次都要遵守)
 
