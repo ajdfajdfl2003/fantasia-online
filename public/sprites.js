@@ -164,7 +164,10 @@ function drawHumanoid(g, x, y, o, t) {
   if (o.torso) o.torso(R, g);
   R(-4, -21, 8, 8, o.skin);
   if (o.eyes) o.eyes(R); else R(2, -18, 1, 2, '#1b1b1b');
-  if (o.hair) { R(-4, -22, 8, 2, o.hair); R(-5, -21, 3, 6, o.hair); R(-2, -20, 2, 1, o.hair); }
+  if (o.hair) {
+    R(-4, -22, 8, 2, o.hair); R(-5, -21, 3, 6, o.hair); R(-2, -20, 2, 1, o.hair);
+    if (o.long) { R(-5, -15, 3, 6, o.hair); R(-6, -18, 1, 8, o.hair); R(3, -21, 1, 4, o.hair); }   // 女角:長髮垂到背後,臉旁一撮
+  }
   if (o.head) o.head(R, g);
   const sw = o.atk || 0;
   if (o.weapon) {
@@ -225,9 +228,9 @@ const CLASS_LOOK = {
   mage: hair => ({ skin: SKIN, hair, robe: true, body: '#6a3fa0', head: HAT_MAGE('#4b2a80'), weapon: W_STAFF('#8ad0ff'), idleAng: 0.15 }),
   bard: hair => ({ skin: SKIN, hair, body: '#c04830', legs: '#3a2a5a', torso: R => R(-1, -13, 2, 6, '#f0d040'), head: HAT_BARD, weapon: W_LUTE, idleAng: 0.2 }),
 };
-function lookOwner(cls, name) {
+function lookOwner(cls, name, sex) {
   const hair = HAIRS[hashStr(name || '') % HAIRS.length];
-  return (CLASS_LOOK[cls] || CLASS_LOOK.knight)(hair);
+  return { ...(CLASS_LOOK[cls] || CLASS_LOOK.knight)(hair), long: sex === 'f' };
 }
 
 const NPC_LOOK = {
@@ -329,7 +332,7 @@ function setLooks(species) { for (const [k, v] of Object.entries(species || {}))
 //  圖片 (public/assets/):有圖用圖,沒圖退回程式繪圖
 //  規格見 docs/art/美術規格.md:256×256 透明 WebP、腳底貼齊底邊正中央、朝右
 // ============================================================
-const ART = { on: true, imgs: {}, meta: {}, sizes: {}, count: 0, onload: null };
+const ART = { on: true, imgs: {}, meta: {}, bust: {}, sizes: {}, count: 0, onload: null, ready: null, loaded: false };
 try { ART.on = localStorage.getItem('fantasia.art') !== 'off'; } catch (e) { /* 沒有 localStorage 也沒關係 */ }
 
 // 量出圖片實際內容的範圍 (用來算頭頂高度、影子寬度)
@@ -344,9 +347,11 @@ function measureArt(img) {
   if (r < l) { top = 0; l = 0; r = w - 1; }
   return { top: top / h, l: l / w, r: (r + 1) / w, pixel: w < 256 };
 }
+// 登入畫面就開始讀 (職業小圖要用主人圖),進遊戲時已經在讀就不重讀
 function loadArt(sizes) {
+  if (ART.ready) return ART.ready;
   ART.sizes = sizes || {};
-  return fetch('/assets.json', { cache: 'no-store' }).then(r => r.json()).then(m => {
+  return (ART.ready = fetch('/assets.json', { cache: 'no-store' }).then(r => r.json()).then(m => {
     ART.sizes = m.art || ART.sizes;
     return Promise.all(m.files.map(f => new Promise(done => {
       const img = new Image(), key = f.p.replace(/\.webp$/i, '');
@@ -356,13 +361,15 @@ function loadArt(sizes) {
     })));
   }).then(() => {
     ART.count = Object.keys(ART.imgs).filter(k => !k.includes('_')).length;
+    ART.loaded = true;
     if (ART.onload) ART.onload();
-  }).catch(() => {});
+  }).catch(() => { ART.ready = null; }));   // 清單讀不到:進遊戲時再試一次
 }
-// 這個角色現在要用哪張圖 (可選動作圖:攻擊 / 受傷 / 睡著)
+// 這個角色現在要用哪張圖 (可選動作圖:寵物的攻擊 / 受傷 / 睡著,主人的施法)
 function artFor(key, o) {
   if (!ART.on || !ART.imgs[key]) return null;
   if (o.atk > 0 && ART.imgs[key + '_attack']) return ART.imgs[key + '_attack'];
+  if (o.atk > 0 && ART.imgs[key + '_cast']) return ART.imgs[key + '_cast'];
   if (o.hurt && ART.imgs[key + '_hurt']) return ART.imgs[key + '_hurt'];
   if (o.sleep && ART.imgs[key + '_sleep']) return ART.imgs[key + '_sleep'];
   return ART.imgs[key];
@@ -371,6 +378,7 @@ function artFor(key, o) {
 // 像素圖一律 2 倍不平滑放大
 function artDrawSize(key, img, size) { return ART.meta[key] && ART.meta[key].pixel ? img.width * 2 : img.width * size / 256; }
 // 把程式動畫套在圖片上:呼吸、走路彈跳、浮空、攻擊前傾、受傷閃白、倒下變灰、朝左翻轉
+// o.owner:主人走路時左右微微搖擺 (每跳一步換邊),施法時在原地前傾、不往前衝
 function drawArt(g, key, x, y, o, size, hover) {
   const img = artFor(key, o);
   if (!img) return false;
@@ -378,15 +386,18 @@ function drawArt(g, key, x, y, o, size, hover) {
   const ds = artDrawSize(key, img, size);
   const breathe = Math.sin(t / 1000 * 3 + id) * 0.025;
   const hop = o.walk ? Math.abs(Math.sin(t / 1000 * 10)) * 3 : 0;
+  const sway = o.owner && o.walk ? Math.sin(t / 1000 * 10) * 0.06 : 0;
   const hov = hover ? hover + Math.sin(t / 300 + id) * 2.5 : 0;
   const lunge = sw > 0 ? Math.sin(sw * Math.PI) : 0;
   g.save();
   g.translate(Math.round(x), Math.round(y));
   const cw = (meta.r - meta.l) * ds;
   shadow(g, Math.max(6, cw * 0.36), Math.max(2, cw * 0.1), hover ? 0.2 : 0.28);
-  g.translate(lunge * 5 * face, -hop - hov);
+  g.translate(o.owner ? 0 : lunge * 5 * face, -hop - hov);
   g.scale(face < 0 ? -1 : 1, 1);
-  if (lunge) { g.translate(0, -ds * 0.3); g.rotate(lunge * 0.14); g.translate(0, ds * 0.3); }
+  if (sway) g.rotate(sway);
+  if (lunge && o.owner) g.rotate(lunge * 0.15);
+  else if (lunge) { g.translate(0, -ds * 0.3); g.rotate(lunge * 0.14); g.translate(0, ds * 0.3); }
   g.scale(1 - breathe * 0.6, 1 + breathe);
   const f0 = g.filter && g.filter !== 'none' ? g.filter + ' ' : '';   // 進化型態的變色濾鏡要保留
   if (o.hurt) g.filter = f0 + 'brightness(2.4)';
@@ -427,6 +438,57 @@ function creatureShadow(g, sp, x, y) {
 }
 function drawNpcArt(g, cls, x, y, face, t) {
   return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
+}
+
+// 主人 (spec 第 7 節):有圖用 owners/<職業>-<m|f>,沒圖用程式繪圖 (髮色依名字變、女角長髮)。
+// 只有男版圖時女角也用程式繪圖,不拿男版代替。who 要有 c 職業、sx 性別、n 名字 (地圖快照、戰鬥單位都有)
+const CAST_GLOW = { knight: '255,140,90', hunter: '130,255,160', priest: '255,235,140', mage: '170,160,255', bard: '255,215,90' };
+const ownerKey = who => `owners/${who.c}-${who.sx === 'f' ? 'f' : 'm'}`;
+function drawOwner(g, x, y, who, o, t) {
+  const key = ownerKey(who), size = (ART.sizes.owner || {}).size || 52, face = o.face || 1;
+  if (!drawArt(g, key, x, y, { ...o, t, id: (who.n || '').length, owner: true }, size, 0)) {
+    drawHumanoid(g, x, y, { ...lookOwner(who.c, who.n, who.sx), ...o }, t);
+    return;
+  }
+  if (!(o.atk > 0)) return;
+  const m = ART.meta[key], ds = artDrawSize(key, ART.imgs[key], size), k = Math.sin(o.atk * Math.PI);
+  drawCastGlow(g, x + face * (m.r - m.l) * ds * 0.5, y - (1 - m.top) * ds * 0.55, CAST_GLOW[who.c] || CAST_GLOW.mage, k, t);
+}
+// 施法的光芒 (k:0 → 1 → 0):白色核心、職業色光暈、往外轉的光點
+function drawCastGlow(g, x, y, rgb, k, t) {
+  const r = 6 + k * 14, gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); gr.addColorStop(0.4, `rgba(${rgb},${0.7 * k})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+  g.save();
+  g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  g.fillStyle = `rgba(255,255,255,${k})`;
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2 + t / 300, d = r * (0.6 + 0.6 * k);
+    g.fillRect(Math.round(x + Math.cos(a) * d) - 1, Math.round(y + Math.sin(a) * d) - 1, 2, 2);
+  }
+  g.restore();
+}
+// 頭像 (左上角、戰鬥面板):有主人圖時取上半身,畫好回傳 true;沒圖時只清空畫布,回傳 false 讓呼叫的地方用程式繪圖
+function drawOwnerBust(c, who) {
+  const g = c.getContext('2d'), key = ownerKey(who), img = ART.on && ART.imgs[key];
+  g.clearRect(0, 0, c.width, c.height);
+  if (!img) return false;
+  const b = ART.bust[key] || (ART.bust[key] = bustBox(img, ART.meta[key]));
+  g.save();
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(img, b.x, b.y, b.s, b.s, 0, 0, c.width, c.height);
+  g.restore();
+  return true;
+}
+// 上半身的範圍:從內容頂端往下取內容高度 55% 的正方形,水平對準這一段不透明像素的重心 (手上的杖、弓不會把臉擠到旁邊)
+function bustBox(img, meta) {
+  const w = img.width, h = img.height, top = Math.floor(meta.top * h), s = Math.max(8, Math.round((h - top) * 0.55));
+  const c = mkCanvas(w, h), g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, top, w, Math.min(s, h - top)).data;
+  let sum = 0, n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 24) { sum += (i >> 2) % w; n++; }
+  const cx = n ? sum / n : w / 2;
+  return { x: clamp(Math.round(cx - s / 2), 0, Math.max(0, w - s)), y: clamp(Math.round(top - s * 0.04), 0, Math.max(0, h - s)), s };
 }
 
 function drawCreature(g, sp, x, y, o) {

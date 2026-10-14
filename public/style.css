@@ -70,6 +70,14 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .row { display: flex; align-items: center; margin: 6px 0; gap: 8px; }
 .row label { width: 64px; color: #ffe8a8; }
 .row input { flex: 1; min-width: 0; }
+.sex-list { display: flex; gap: 4px; }
+.row .sex {
+  width: auto; padding: 2px 14px; cursor: pointer; color: #fff;
+  background: rgba(0, 0, 0, .3); border: 1px solid #44557f; border-radius: 3px;
+}
+.sex input { display: none; }
+.sex:has(input:checked) { border-color: #ffd84a; background: rgba(255, 216, 74, .15); box-shadow: 0 0 6px rgba(255, 216, 74, .5); }
+.sex-note { color: #9aa8cc; }
 .cls-title { margin: 12px 0 6px; color: #ffe8a8; }
 .cls-title small { color: #9aa8cc; }
 .cls-list { display: flex; gap: 4px; }

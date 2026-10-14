@@ -346,6 +346,7 @@ class Player:
         self.ws = ws
         self.rec = rec
         self.cls = rec['cls']
+        self.sex = 'f' if rec.get('sex') == 'f' else 'm'   # 舊存檔沒有 sex、或不是 f 的值,一律當作男
         self.lv = int(rec.get('lv', 1))
         self.exp = int(rec.get('exp', 0))
         self.gold = int(rec.get('gold', 0))
@@ -407,7 +408,7 @@ class Player:
 
     def record(self):
         r = dict(self.rec)
-        r.update({'cls': self.cls, 'lv': self.lv, 'exp': self.exp, 'gold': self.gold, 'inv': self.inv,
+        r.update({'cls': self.cls, 'sex': self.sex, 'lv': self.lv, 'exp': self.exp, 'gold': self.gold, 'inv': self.inv,
                   'pets': self.pets, 'bank': self.bank, 'eggs': self.eggs, 'active': self.active, 'x': round(self.x, 2), 'y': round(self.y, 2),
                   'hp': self.hp, 'mp': self.mp, 'last': int(time.time()), 'cd': live_cd(self.cd, time.time())})
         r.pop('equip', None)
@@ -420,7 +421,7 @@ class Player:
 class Unit:
     def __init__(self, uid, side, kind, name, lv):
         self.id, self.side, self.kind, self.name, self.lv = uid, side, kind, name, lv  # kind: o 主人 / p 寵物 / m 敵人
-        self.el = self.sp = self.cls = self.pid = self.pet = None
+        self.el = self.sp = self.cls = self.sex = self.pid = self.pet = None
         self.mhp = self.mmp = self.hp = self.mp = 1
         self.atk = self.matk = self.df = self.mdf = 0
         self.spd, self.eva = 20.0, 0.0
@@ -658,7 +659,7 @@ class Game:
                 ws.send({'t': 'err', 'm': '請選擇職業'})
                 return None
             salt = secrets.token_hex(8)
-            rec = {'salt': salt, 'hash': hash_pw(salt, pw), 'cls': cls, 'lv': 1, 'exp': 0, 'gold': 300,
+            rec = {'salt': salt, 'hash': hash_pw(salt, pw), 'cls': cls, 'sex': 'f' if m.get('sex') == 'f' else 'm', 'lv': 1, 'exp': 0, 'gold': 300,
                    'inv': [{'id': 'seal_card', 'n': 5}, {'id': 'red_potion', 'n': 5}, {'id': 'blue_potion', 'n': 2}],
                    'pets': [new_pet('poring', 1, 4)], 'active': 0,
                    'x': SPAWN[0], 'y': SPAWN[1], 'created': int(time.time())}
@@ -678,7 +679,7 @@ class Game:
         classes = {k: {'n': v['name'], 'desc': v['desc'], 'skills': v['skills']} for k, v in CLASSES.items()}
         care = {k: CARE[k] for k in ('hungry', 'full', 'sync_bond', 'guard_bond', 'bank_max', 'assist')}
         care['trick_bond'] = INTERACT['trick']['need_bond']
-        ws.send({'t': 'welcome', 'id': p.id, 'name': name, 'cls': p.cls, 'w': W, 'h': H, 'tiles': self.tiles_str,
+        ws.send({'t': 'welcome', 'id': p.id, 'name': name, 'cls': p.cls, 'sex': p.sex, 'w': W, 'h': H, 'tiles': self.tiles_str,
                  'npcs': NPCS, 'species': species, 'classes': classes, 'pskills': PET_SKILLS, 'items': ITEMS,
                  'elements': ELEMENTS, 'statusNames': STATUS_NAMES, 'weather': {k: v['name'] for k, v in WEATHER.items()},
                  'hatchTime': HATCH_TIME, 'hatchWarmup': HATCH_WARMUP, 'petMax': PET_MAX,
@@ -1500,7 +1501,7 @@ class Game:
 
     def owner_unit(self, p):
         u = Unit(self.nid(), 0, 'o', p.name, p.lv)
-        u.cls, u.pid = p.cls, p.id
+        u.cls, u.sex, u.pid = p.cls, p.sex, p.id
         u.mhp, u.mmp, u.hp, u.mp = p.mhp, p.mmp, p.hp, p.mp
         u.spd = CLASSES[p.cls]['spd']
         u.bar = random.uniform(20, 40)
@@ -2385,6 +2386,8 @@ class Game:
              'el': u.el or '', 'hp': max(0, int(u.hp)), 'mh': u.mhp, 'mp': max(0, int(u.mp)), 'mm': u.mmp,
              'bar': round(u.bar, 1), 'rt': round(u.rate(), 1), 'rd': int(u.ready_at is not None),
              'st': sorted(u.status.keys()), 'pid': u.pid or 0, 'ko': int(not u.alive), 'boss': int(u.boss)}
+        if u.kind == 'o':
+            v['sx'] = u.sex
         if u.kind == 'p' and u.pet is not None:
             v['md'] = self.battle_mood(b, u) if b else ''
             v['sy'] = int(u.sync) if u.pet['bond'] >= CARE['sync_bond'] else -1
@@ -2398,7 +2401,7 @@ class Game:
         for p in self.players.values():
             pt = p.pets[p.active] if p.pets and not p.battle and p.pets[p.active]['hp'] > 0 else None
             ents.append((p.x, p.y, {'i': p.id, 'k': 'p', 'x': round(p.x, 2), 'y': round(p.y, 2), 'n': p.name,
-                                    'lv': p.lv, 'c': p.cls, 'f': p.face, 'mv': int(p.moving), 'b': p.battle or 0,
+                                    'lv': p.lv, 'c': p.cls, 'sx': p.sex, 'f': p.face, 'mv': int(p.moving), 'b': p.battle or 0,
                                     'pt': pt['sp'] if pt else '', 'pn': pt['n'] if pt else '',
                                     'pm': pet_mood(pt, now - p.idle_since) if pt else ''}))
         bs = self.boss

@@ -35,10 +35,19 @@ const UI = (() => {
   //  登入
   // ============================================================
   function initLogin() {
-    for (const c of document.querySelectorAll('.cls canvas')) {
-      const g = c.getContext('2d');
-      drawHumanoid(g, 24, 52, { ...lookOwner(c.dataset.cls, c.dataset.cls), scale: 2, face: 1 }, 0);
-    }
+    // 職業小圖跟著選的性別換 (有主人圖用圖,沒有用程式繪圖);圖片在背景讀,讀完再畫一次
+    const sex = () => document.querySelector('input[name=sex]:checked').value;
+    const drawClasses = () => {
+      for (const c of document.querySelectorAll('.cls canvas')) {
+        const g = c.getContext('2d');
+        g.clearRect(0, 0, c.width, c.height);
+        drawOwner(g, 24, 52, { c: c.dataset.cls, sx: sex(), n: c.dataset.cls }, { face: 1 }, 0);
+      }
+    };
+    drawClasses();
+    document.querySelectorAll('input[name=sex]').forEach(r => r.addEventListener('change', drawClasses));
+    ART.onload = drawClasses;
+    loadArt();
     const DESC = {
       knight: '騎士:強化寵物的攻擊與防禦,削弱敵人。HP 最高,適合新手。',
       hunter: '獵人:操控時間棒,捕捉成功率高、遇敵率低、逃跑容易。',
@@ -85,12 +94,19 @@ const UI = (() => {
       initAudio();
       el('lg-btn').disabled = true;
       el('lg-err').textContent = '連線中…';
-      const msg = { t: 'login', name, pass: el('lg-pass').value, cls: document.querySelector('input[name=cls]:checked').value };
+      const msg = { t: 'login', name, pass: el('lg-pass').value, cls: document.querySelector('input[name=cls]:checked').value, sex: sex() };
       if (S.ws && S.ws.readyState === 1) send(msg); else connect(() => send(msg));
     };
     el('lg-btn').onclick = go;
     for (const i of [el('lg-name'), el('lg-pass')]) i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     el('lg-name').focus();
+  }
+  // 主人頭像:有主人圖用上半身,沒圖用程式繪圖 (x, y 是程式繪圖的腳底位置)
+  function ownerFace(c, x, y) {
+    if (drawOwnerBust(c, { c: S.cls, sx: S.sex, n: S.myName })) return;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    drawHumanoid(g, x, y, { ...lookOwner(S.cls, S.myName, S.sex), scale: 3, face: 1 }, 0);
   }
   function loginError(m) { el('lg-err').textContent = m; el('lg-btn').disabled = false; }
 
@@ -99,9 +115,7 @@ const UI = (() => {
     el('login').hidden = true; el('game').hidden = false;
     el('st-name').textContent = m.name;
     el('st-cls').textContent = (S.classes[S.cls] || {}).n || '';
-    const pg = el('portrait').getContext('2d');
-    pg.imageSmoothingEnabled = false;
-    drawHumanoid(pg, 30, 74, { ...lookOwner(S.cls, S.myName), scale: 3, face: 1 }, 0);
+    ownerFace(el('portrait'), 30, 74);
     for (const b of document.querySelectorAll('#menu [data-win]')) b.onclick = () => toggleWin(b.dataset.win);
     el('btn-snd').onclick = toggleSound;
     el('btn-art').onclick = toggleArt;
@@ -164,6 +178,8 @@ const UI = (() => {
   }
   function artChanged() {
     artLabel();
+    ownerFace(el('portrait'), 30, 74);
+    if (!el('bpanel').hidden) ownerFace(el('bp-ownface'), 32, 84);
     el('sp-name').dataset.sp = '';   // 讓頭像重畫
     bpKey = '';
     status();
@@ -226,10 +242,7 @@ const UI = (() => {
     el('bpanel').hidden = false;
     el('bp-auto').checked = S.auto;
     bpKey = '';
-    drawPetFace(el('bp-ownface'), null);
-    const og = el('bp-ownface').getContext('2d');
-    og.clearRect(0, 0, 64, 64); og.imageSmoothingEnabled = false;
-    drawHumanoid(og, 32, 84, { ...lookOwner(S.cls, S.myName), scale: 3, face: 1 }, 0);
+    ownerFace(el('bp-ownface'), 32, 84);
   }
   function battleClose() { el('bpanel').hidden = true; closeMenus(); status(); }
   function battleAuto() { el('bp-auto').checked = S.auto; }

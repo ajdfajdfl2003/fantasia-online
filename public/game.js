@@ -7,7 +7,7 @@ const $ = s => document.querySelector(s);
 const MAP_CX = 48, MAP_CY = 48;
 
 const S = {
-  ws: null, myId: 0, myName: '', cls: '', W: 0, H: 0, tiles: null, vars: null, mmBase: null,
+  ws: null, myId: 0, myName: '', cls: '', sex: 'm', W: 0, H: 0, tiles: null, vars: null, mmBase: null,
   ents: new Map(), npcs: [], battles: new Map(), uidx: new Map(), followers: new Map(),
   species: {}, classes: {}, pskills: {}, items: {}, elements: {}, statusNames: {}, weatherNames: {},
   hatchTime: 60, hatchWarmup: 20, petMax: 5,
@@ -96,7 +96,7 @@ function onMsg(m) {
 // ============================================================
 let cv, ctx, mm, mmc;
 function startGame(m) {
-  S.myId = m.id; S.myName = m.name; S.cls = m.cls;
+  S.myId = m.id; S.myName = m.name; S.cls = m.cls; S.sex = m.sex === 'f' ? 'f' : 'm';
   S.W = m.w; S.H = m.h;
   S.tiles = Uint8Array.from(m.tiles, ch => ch.charCodeAt(0) - 48);
   S.vars = Uint8Array.from({ length: S.W * S.H }, (_, i) => (hash2(i % S.W, (i / S.W) | 0) * 4) | 0);
@@ -109,8 +109,9 @@ function startGame(m) {
   cv = $('#view'); ctx = cv.getContext('2d'); mm = $('#minimap'); mmc = mm.getContext('2d');
   paintTrees(); buildMinimap();
   ART.onload = () => UI.artChanged();
-  loadArt(m.art);
+  loadArt(m.art);   // 登入畫面已經開始讀的話不會重讀
   UI.enterGame(m);
+  if (ART.loaded) UI.artChanged();   // 在登入畫面就讀完了
   bindInput(); resize();
   addEventListener('resize', resize);
   requestAnimationFrame(frame);
@@ -685,7 +686,7 @@ const feet = e => [e.rx * TILE + S.ox, e.ry * TILE + S.oy + 8];
 function drawEntity(e, t) {
   const [x, y] = feet(e);
   if (x < -150 || y < -150 || x > cv.width + 150 || y > cv.height + 150) return;
-  if (e.k === 'p') drawHumanoid(ctx, x, y, { ...lookOwner(e.c, e.n), face: e.f, walk: e.mv }, t);
+  if (e.k === 'p') drawOwner(ctx, x, y, e, { face: e.f, walk: e.mv }, t);
   else if (e.k === 'm') drawCreature(ctx, e.c, x, y, { face: e.f, t, id: e.i });
 }
 
@@ -748,7 +749,7 @@ function drawBattleUnits(rb, t) {
     const atk = u.atkT ? clamp((t - u.atkT) / 300, 0, 1) : 0, sw = atk > 0 && atk < 1 ? atk : 0;
     if (u.k === 'o') {
       if (u.ko) drawGrave(ctx, x, y);
-      else drawHumanoid(ctx, x, y, { ...lookOwner(u.c, u.n), face: 1, atk: sw }, t);
+      else drawOwner(ctx, x, y, u, { face: 1, atk: sw }, t);
     } else {
       if (u.sg && !u.ko) {   // 助攻發動中:金色光暈
         const r = 26 + Math.sin(t / 90) * 3, gr = ctx.createRadialGradient(x, y - unitH(u) * 0.45, 4, x, y - unitH(u) * 0.45, r);

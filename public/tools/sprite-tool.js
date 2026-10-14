@@ -26,24 +26,37 @@ const WEBP_QUALITY = 0.9;   // 2026-10-11 實測:256×256 成品 PNG 約 85KB,We
 // ---------- 目標 (要做哪一張) ----------
 function target() {
   const kind = $('sel-kind').value;
-  return makeTarget(kind, $('sel-target').value, kind === 'pets' ? $('sel-frame').value : '');
+  return makeTarget(kind, $('sel-target').value, kindFrames(kind).length ? $('sel-frame').value : '');
 }
+// 每一類有哪些目標:寵物、NPC 用清單裡的名字表,主人從圖片清單 (catalog) 取 (男騎士、女騎士…)
+function kindNames(kind) {
+  if (kind === 'pets') return T.man.species;
+  if (kind === 'npcs') return T.man.npcs;
+  const out = {};
+  for (const e of T.man.catalog) if (e.k === kind && !e.f) out[e.id] = e.name;
+  return out;
+}
+// 每一類有哪些動作圖 (寵物:攻擊、受傷、睡著;主人:施法;NPC 沒有)
+const kindFrames = kind => T.man ? [...new Set(T.man.catalog.filter(e => e.k === kind && e.f).map(e => e.f))] : [];
+const SIZE_KEY = { npcs: 'npc', owners: 'owner' }, SIZE_DEFAULT = { npcs: 72, owners: 52 };
 function makeTarget(kind, id, frame) {
   const file = `${kind}/${id}${frame ? '_' + frame : ''}.webp`;
   const art = T.man ? T.man.art : {};
-  const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art.npc || {}).size || 72);
+  const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art[SIZE_KEY[kind]] || {}).size || SIZE_DEFAULT[kind]);
   return { kind, id, frame, file, key: file.replace(/\.webp$/, ''), baseKey: `${kind}/${id}`, size, hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0 };
 }
 function fillTargets() {
-  const kind = $('sel-kind').value, sel = $('sel-target'), names = kind === 'pets' ? T.man.species : T.man.npcs;
-  const prev = sel.value;
+  const kind = $('sel-kind').value, sel = $('sel-target'), names = kindNames(kind), frames = kindFrames(kind);
+  const prev = sel.value, prevFrame = $('sel-frame').value;
   sel.innerHTML = Object.entries(names).map(([k, n]) => {
     const has = T.man.files.some(f => f.p === `${kind}/${k}.webp`);
-    const src = findSrc({ kind, id: k, frame: '' });
+    const src = findSrc(makeTarget(kind, k, ''));
     return `<option value="${k}">${n}${has ? '  ✔有圖' : ''}${src ? '  · 有原圖' : ''}</option>`;
   }).join('');
   if (names[prev]) sel.value = prev;
-  $('frame-row').hidden = kind !== 'pets';
+  $('sel-frame').innerHTML = ['', ...frames].map(f => `<option value="${f}">${f ? T.man.frameNames[f] : '主圖'}</option>`).join('');
+  if (frames.includes(prevFrame)) $('sel-frame').value = prevFrame;
+  $('frame-row').hidden = !frames.length;
   updateTarget();
 }
 function updateTarget() {
@@ -449,12 +462,13 @@ function drawPreview(t) {
     g.save(); g.translate(x, y); g.scale(scale, scale);
     const saved = ART.on; ART.on = useArt;
     if (tg.kind === 'pets') drawCreature(g, tg.id, 0, 0, { t, face: 1, id: 3, atk: tg.frame === 'attack' ? 0.5 : 0, hurt: tg.frame === 'hurt', sleep: tg.frame === 'sleep' });
+    else if (tg.kind === 'owners') { const [c, sx] = tg.id.split('-'); drawOwner(g, 0, 0, { c, sx, n: '測試' }, { face: 1, atk: tg.frame === 'cast' ? 0.5 : 0 }, t); }
     else if (!(useArt && drawNpcArt(g, tg.id, 0, 0, 1, t))) drawHumanoid(g, 0, 0, { ...(NPC_LOOK[tg.id] || {}), face: 1 }, t);
     ART.on = saved;
     g.restore();
   };
   // 上排:地圖上實際大小
-  drawHumanoid(g, 70, 100, { ...lookOwner('knight', '測試'), face: 1 }, t);
+  drawHumanoid(g, 70, 100, { ...lookOwner('knight', '測試'), face: 1 }, t);   // 比大小用的主人一律用程式繪圖 (ART.imgs 裡可能是正在做的圖)
   if (has) drawOne(190, 100, true, 1); else label('(還沒有成品)', 190, 90);
   const cmp = tg.frame && T.mainRef && T.mainRef.key === tg.baseKey && ART.imgs.cmp;
   const drawCmp = (x, y, scale) => {

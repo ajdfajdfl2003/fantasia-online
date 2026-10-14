@@ -19,6 +19,13 @@
         <div class="server">伺服器:<b>艾爾文</b> <span class="ok">● 順暢</span></div>
         <div class="row"><label for="lg-name">角色名稱</label><input id="lg-name" maxlength="12" autocomplete="off" spellcheck="false"></div>
         <div class="row"><label for="lg-pass">密　　碼</label><input id="lg-pass" type="password" maxlength="32" placeholder="可留空"></div>
+        <div class="row"><label>性　　別</label>
+          <span class="sex-list">
+            <label class="sex"><input type="radio" name="sex" value="m" checked><b>男</b></label>
+            <label class="sex"><input type="radio" name="sex" value="f"><b>女</b></label>
+          </span>
+          <small class="sex-note">建立新角色時才會用到</small>
+        </div>
         <div class="cls-title">選擇職業 <small>(主人負責輔助,寵物負責戰鬥)</small></div>
         <div class="cls-list">
           <label class="cls"><input type="radio" name="cls" value="knight" checked><canvas data-cls="knight" width="48" height="56"></canvas><b>騎士</b><small>強化寵物</small></label>

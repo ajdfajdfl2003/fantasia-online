@@ -511,6 +511,7 @@ ART = {
     'bat': {'size': 44, 'hover': 14}, 'griffin': {'size': 78}, 'drake': {'size': 68}, 'dragon': {'size': 160},
     'silverwolf': {'size': 60}, 'duskbird': {'size': 46, 'hover': 12},
     'npc': {'size': 56},
+    'owner': {'size': 52},   # 主人圖 owners/<職業>-<m|f>.webp,男女一樣大 (spec 第 7、12 節)
 }
 for _k, _sp in SPECIES.items():   # 進化型態:初階的大小 × 1.15 / × 1.3
     if _sp['stage']:

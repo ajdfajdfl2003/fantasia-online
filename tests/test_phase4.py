@@ -129,7 +129,65 @@ def test_cache_control():
     check('/index.html 回 no-cache', server.cache_control('/index.html', '') == 'no-cache')
 
 
+def test_owner_sex():
+    print('\n[主人的性別 (spec 第 7、15 節)]')
+    g = server.Game()
+    p = g.login(T.FakeWS(), {'name': 'X_girl', 'pass': 'x', 'cls': 'priest', 'sex': 'f'})
+    check('新角色選女:登入後是女', p and p.sex == 'f')
+    check('進遊戲的訊息帶性別', p.ws.last('welcome').get('sex') == 'f')
+    g.logout(p)
+    check('存檔有 sex 欄位', g.accounts['X_girl'].get('sex') == 'f', g.accounts['X_girl'].get('sex'))
+    g2 = server.Game()   # 重新讀存檔
+    p = g2.login(T.FakeWS(), {'name': 'X_girl', 'pass': 'x', 'cls': 'knight', 'sex': 'm'})
+    check('重新登入還是女 (登入畫面選的性別只在建立新角色時有用)', p.sex == 'f' and p.cls == 'priest', (p.sex, p.cls))
+    check('重新登入的進遊戲訊息也是女', p.ws.last('welcome').get('sex') == 'f')
+    g2.logout(p)
+
+    old = dict(g2.accounts['X_girl'])
+    old.pop('sex')
+    g2.accounts['X_old'] = old
+    p = g2.login(T.FakeWS(), {'name': 'X_old', 'pass': 'x', 'sex': 'f'})
+    check('舊存檔沒有 sex:登入是男', p and p.sex == 'm', p and p.sex)
+    g2.logout(p)
+    g2.accounts['X_odd'] = dict(old, sex='F')
+    p = g2.login(T.FakeWS(), {'name': 'X_odd', 'pass': 'x'})
+    check('存檔裡的性別不是 f:當作男', p.sex == 'm', p.sex)
+    g2.logout(p)
+
+    bad = []
+    for i, sex in enumerate(('x', 'F', '', None, 1, ['f'], {'f': 1})):
+        ws = T.FakeWS()
+        q = g2.login(ws, {'name': 'X_bad%d' % i, 'pass': 'x', 'cls': 'mage', 'sex': sex})
+        if not q or q.sex != 'm' or ws.last('err'):
+            bad.append(sex)
+        if q:
+            g2.logout(q)
+    check('建立角色時性別不合法:當作男,不回錯誤', not bad, bad)
+    ws = T.FakeWS()
+    q = g2.login(ws, {'name': 'X_none', 'pass': 'x', 'cls': 'mage'})
+    check('登入訊息沒帶性別:當作男', q and q.sex == 'm')
+    g2.logout(q)
+
+    a = g2.login(T.FakeWS(), {'name': 'X_seeA', 'pass': 'x', 'cls': 'bard', 'sex': 'f'})
+    b = g2.login(T.FakeWS(), {'name': 'X_seeB', 'pass': 'x', 'cls': 'knight'})
+    b.x, b.y = a.x, a.y
+    g2.send_snaps(T.clock[0])
+    ents = {e['n']: e for e in b.ws.last('snap')['e']}
+    check('地圖快照帶性別,別的玩家看得到', ents.get('X_seeA', {}).get('sx') == 'f' and ents.get('X_seeB', {}).get('sx') == 'm',
+          {n: e.get('sx') for n, e in ents.items()})
+    bt = T.controlled_battle(g2, a)
+    g2.send_snaps(T.clock[0])
+    units = [u for x in b.ws.last('snap')['bt'] if x['i'] == bt.id for u in x['u']]
+    owner = [u for u in units if u['k'] == 'o']
+    check('戰鬥單位的主人帶性別', len(owner) == 1 and owner[0].get('sx') == 'f', owner)
+    check('寵物與敵人不帶性別', all('sx' not in u for u in units if u['k'] != 'o'))
+    g2.logout(a)
+    g2.logout(b)
+    check('主人的顯示大小 52px', gd.ART.get('owner', {}).get('size') == 52, gd.ART.get('owner'))
+
+
 def main():
+    test_owner_sex()
     test_art_names()
     test_art_save_and_manifest()
     test_src_mtime()
