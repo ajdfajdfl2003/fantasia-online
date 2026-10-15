@@ -39,12 +39,17 @@ function kindNames(kind) {
 // 每一類有哪些動作圖 (寵物:攻擊、受傷、睡著;主人:施法;NPC 沒有)
 const kindFrames = kind => T.man ? [...new Set(T.man.catalog.filter(e => e.k === kind && e.f).map(e => e.f))] : [];
 // 顯示大小在 ART 裡的代號:寵物用種族、主人共用 owner、NPC 每位一個 npc_<代號> (spec 第 8 節)
-const SIZE_KEY = { owners: () => 'owner', npcs: id => 'npc_' + id }, SIZE_DEFAULT = { npcs: 52, owners: 52 };
+// 道具不在 ART 裡:背包、戰鬥道具欄固定 32px (商店與說明框 48px)
+const SIZE_KEY = { owners: () => 'owner', npcs: id => 'npc_' + id }, SIZE_DEFAULT = { npcs: 52, owners: 52, items: 32 };
+const ITEM_OUT = 64;   // 道具的成品畫布:64×64、置中,不用腳底對齊 (spec 第 4.2 節)
 function makeTarget(kind, id, frame) {
   const file = `${kind}/${id}${frame ? '_' + frame : ''}.webp`;
   const art = T.man ? T.man.art : {};
-  const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art[SIZE_KEY[kind](id)] || {}).size || SIZE_DEFAULT[kind]);
-  return { kind, id, frame, file, key: file.replace(/\.webp$/, ''), baseKey: `${kind}/${id}`, size, hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0 };
+  const size = kind === 'pets' ? ((art[id] || {}).size || 64)
+    : SIZE_KEY[kind] ? ((art[SIZE_KEY[kind](id)] || {}).size || SIZE_DEFAULT[kind]) : SIZE_DEFAULT[kind];
+  const center = kind === 'items';
+  return { kind, id, frame, file, key: file.replace(/\.webp$/, ''), baseKey: `${kind}/${id}`, size,
+    hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0, out: center ? ITEM_OUT : OUT, center };
 }
 function fillTargets() {
   const kind = $('sel-kind').value, sel = $('sel-target'), names = kindNames(kind), frames = kindFrames(kind);
@@ -63,7 +68,8 @@ function fillTargets() {
 function updateTarget() {
   const tg = target(), pix = $('pix').checked;
   $('fname').textContent = 'public/assets/' + tg.file;
-  $('finfo').textContent = `遊戲中顯示 ${tg.size}px` + (pix ? `,像素化畫布 ${Math.round(tg.size / 2)}×${Math.round(tg.size / 2)}` : `,成品畫布 ${OUT}×${OUT}`)
+  $('finfo').textContent = tg.center ? `背包、戰鬥道具欄顯示 ${tg.size}px,商店與說明框 48px,成品畫布 ${tg.out}×${tg.out}(置中,不像素化)`
+    : `遊戲中顯示 ${tg.size}px` + (pix ? `,像素化畫布 ${Math.round(tg.size / 2)}×${Math.round(tg.size / 2)}` : `,成品畫布 ${OUT}×${OUT}`)
     + (tg.hover ? `,浮空 ${tg.hover}px` : '');
   const cur = T.man && T.man.files.find(f => f.p === tg.file);
   if (cur) $('cur-img').src = `/assets/${cur.p}?v=${cur.v}`; else $('cur-img').removeAttribute('src');
@@ -344,27 +350,30 @@ function buildOutput() {
     note = ref ? `已依遊戲裡的主圖(${tg.baseKey}.webp)對齊大小` : '遊戲裡還沒有這隻的主圖:先做主圖,動作圖才能自動對齊大小(現在是塞滿畫布)';
   }
   const r = composeOut(T.final, T.w, T.h, { pad: +$('pad').value, flip: $('flip').checked, pix: $('pix').checked,
-    colors: +$('colors').value, outline: $('outline').checked, fscale: +$('fscale').value, size: tg.size, frame: tg.frame, refArea });
+    colors: +$('colors').value, outline: $('outline').checked, fscale: +$('fscale').value, size: tg.size, frame: tg.frame, refArea,
+    out: tg.out, center: tg.center });
   $('fscale-note').textContent = note + (r && r.note ? ';' + r.note : '');
   T.out = r ? r.out : null;
   refreshOutput();
 }
 // 去背後的像素 → 成品畫布 (裁切、縮放、置中、腳底對齊、翻轉、像素化)。整張透明回傳 null
 // o.refArea:動作圖要對齊的主圖面積 (opaqueArea);0 就塞滿畫布
+// o.out / o.center:道具是 64×64 畫布、上下左右置中,不用腳底對齊、不像素化
 function composeOut(px, w, h, o) {
   const b = bbox(px, w, h);
   if (!b) return null;
   const crop = mkCanvas(b.w, b.h);
   crop.getContext('2d').putImageData(new ImageData(px, w, h), -b.x0, -b.y0, b.x0, b.y0, b.w, b.h);
-  const side = 2;
-  let k = Math.min((OUT - side * 2) / b.w, (OUT - o.pad) / b.h), note = '';   // 塞滿畫布的倍率
+  const side = 2, C0 = o.out || OUT;
+  let k = o.center ? Math.min((C0 - side * 2) / b.w, (C0 - side * 2) / b.h)   // 塞滿畫布的倍率
+    : Math.min((OUT - side * 2) / b.w, (OUT - o.pad) / b.h), note = '';
   if (o.frame && o.refArea) {   // 動作圖:依主圖的面積對齊大小,不要各自塞滿 (不然攻擊、受傷、睡著會忽大忽小)
     let area = 0;
     for (let i = 3; i < px.length; i += 4) if (px[i] > 128) area++;
     k = Math.sqrt(o.refArea / Math.max(1, area)) * (o.fscale / 100);
   }
   // 動作圖比主圖大時,把畫布放大 (遊戲依圖片寬度等比例畫,大小仍然對齊),而不是把角色縮小
-  let C = OUT;
+  let C = C0;
   const needW = b.w * k + side * 2, needH = b.h * k + o.pad;
   if (o.frame && (needW > OUT || needH > OUT)) {
     C = Math.min(512, Math.ceil(Math.max(needW, needH)));
@@ -375,8 +384,8 @@ function composeOut(px, w, h, o) {
   let out = mkCanvas(C, C);
   const g = out.getContext('2d');
   if (o.flip) { g.translate(C, 0); g.scale(-1, 1); }
-  g.drawImage(fit, Math.round((C - fit.width) / 2), C - fit.height);
-  if (o.pix) out = pixelate(out, Math.max(8, Math.round(o.size / 2 * C / OUT)), o.colors, o.outline);
+  g.drawImage(fit, Math.round((C - fit.width) / 2), o.center ? Math.round((C - fit.height) / 2) : C - fit.height);
+  if (o.pix && !o.center) out = pixelate(out, Math.max(8, Math.round(o.size / 2 * C / OUT)), o.colors, o.outline);
   return { out, note };
 }
 
@@ -464,6 +473,7 @@ function drawPreview(t) {
     const saved = ART.on; ART.on = useArt;
     if (tg.kind === 'pets') drawCreature(g, tg.id, 0, 0, { t, face: 1, id: 3, atk: tg.frame === 'attack' ? 0.5 : 0, hurt: tg.frame === 'hurt', sleep: tg.frame === 'sleep' });
     else if (tg.kind === 'owners') { const [c, sx] = tg.id.split('-'); drawOwner(g, 0, 0, { c, sx, n: '測試' }, { face: 1, atk: tg.frame === 'cast' ? 0.5 : 0 }, t); }
+    else if (tg.kind === 'items') drawItemIcon(g, tg.id, (T.man.itemIcons || {})[tg.id], -16, -32, 32);   // 背包大小 32px,下排 2 倍
     else if (!(useArt && drawNpcArt(g, tg.id, 0, 0, 1, t))) drawHumanoid(g, 0, 0, { ...(NPC_LOOK[tg.id] || {}), face: 1 }, t);
     ART.on = saved;
     g.restore();
@@ -586,7 +596,7 @@ async function batchOne(it, mains, o) {
     refArea = mains[it.tg.baseKey] || await gameMainArea(it.tg);
     if (!refArea) return failItem(it, '遊戲裡和這一批裡都沒有這隻的主圖:先做主圖');
   }
-  const r = composeOut(px, im.w, im.h, { ...o, size: it.tg.size, frame: it.tg.frame, refArea });
+  const r = composeOut(px, im.w, im.h, { ...o, size: it.tg.size, frame: it.tg.frame, refArea, out: it.tg.out, center: it.tg.center });
   if (!r) return failItem(it, '去背之後什麼都沒剩');
   it.out = r.out; it.state = 'ready';
   if (!it.tg.frame) mains[it.tg.key] = opaqueArea(r.out);

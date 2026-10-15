@@ -176,6 +176,12 @@ input:focus { background: #fff; box-shadow: 0 0 0 1px #ffd84a; }
 .slot[data-item] { cursor: pointer; }
 .slot[data-item]:hover { box-shadow: inset 0 0 0 1px #ffd84a; }
 .slot .cnt { position: absolute; right: 2px; bottom: 0; color: #fff; font: bold 11px Verdana, sans-serif; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; }
+/* 道具圖 (spec 第 9 節):成品 64×64 要平滑縮小;背包、戰鬥道具欄 32px,商店與說明框 48px。沒有圖的維持程式繪圖 */
+.slot.art { image-rendering: auto; }
+.shop-row .slot.art { width: 52px; height: 52px; background-size: 48px 48px; }
+#menu-pop img.art { width: 32px; height: 32px; image-rendering: auto; }
+.care-taste img.art, .pd-care img.art { image-rendering: auto; }
+#tip .tip-icon { float: left; width: 48px; height: 48px; margin: 0 8px 2px 0; }
 .inv-foot { margin-top: 8px; }
 .hint { margin-top: 6px; color: #8a9ac4; font-size: 11px; line-height: 1.5; }
 .shop-row { display: flex; align-items: center; gap: 6px; padding: 3px; border-bottom: 1px dotted #3c4a74; }

@@ -2578,8 +2578,9 @@ def asset_manifest(catalog=False):
          'species': dict([(k, v['name']) for k, v in SPECIES.items()] + [('dragon', BOSS['name'])]),
          'npcs': {n['c']: n['n'] for n in NPCS},
          'looks': {k: v['look'] for k, v in SPECIES.items() if v.get('look')}}
-    if catalog:
-        m.update(catalog=art_catalog(), frameNames=ART_FRAME_NAMES)
+    if catalog:   # itemIcons:去背工具畫道具的程式繪圖 (跟成品並排比較) 要用
+        m.update(catalog=art_catalog(), frameNames=ART_FRAME_NAMES,
+                 itemIcons={k: {'icon': v['icon'], 'col': v['col']} for k, v in ITEMS.items()})
     return m
 
 

@@ -768,7 +768,16 @@ function iconC(id, it) {
   iconCanvas[id] = c;
   return c;
 }
-function iconURLof(id, it) { return iconURL[id] || (iconURL[id] = iconC(id, it).toDataURL()); }
+// 道具圖 (spec 第 9 節):有 items/<代號>.webp 就用圖 (成品 64×64),沒有就用程式繪圖;美術開關切到「程式」時一律程式繪圖
+function itemArt(id) { return (ART.on && ART.imgs['items/' + id]) || null; }
+function iconURLof(id, it) { const a = itemArt(id); return a ? a.src : iconURL[id] || (iconURL[id] = iconC(id, it).toDataURL()); }
+// 畫在 canvas 上 (食物飛向寵物、丟封印卡):圖要平滑縮小,程式繪圖維持像素感
+function drawItemIcon(g, id, it, x, y, s) {
+  const a = itemArt(id), sm = g.imageSmoothingEnabled;
+  g.imageSmoothingEnabled = !!a;
+  g.drawImage(a || iconC(id, it), x, y, s, s);
+  g.imageSmoothingEnabled = sm;
+}
 
 const SKILL_COLORS = {
   slam: ['#ffc060', '#a03a00'], slash: ['#f0f0f0', '#606870'], poison: ['#c0f080', '#407010'], drain: ['#f08080', '#601020'],

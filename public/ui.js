@@ -183,6 +183,7 @@ const UI = (() => {
     el('sp-name').dataset.sp = '';   // 讓頭像重畫
     bpKey = '';
     status();
+    if (S.inv) inv();   // 背包的道具圖 (也會重畫孵化屋)
     if (!el('win-pets').hidden) renderPets();
     if (!el('win-bank').hidden) renderBank();
   }
@@ -338,9 +339,12 @@ const UI = (() => {
     m.style.top = Math.max(4, r.top - m.offsetHeight - 6) + 'px';
   }
   function closeMenus() { el('menu-pop').hidden = true; }
+  // 道具小圖:有道具圖時加 class="art" (平滑縮小、放大到 spec 第 9 節的大小),沒有圖維持程式繪圖
+  const itemImg = id => `<img src="${iconURLof(id, S.items[id])}"${itemArt(id) ? ' class="art"' : ''}>`;
+  const slotCls = id => 'slot' + (itemArt(id) ? ' art' : '');
   function itemMenu(anchor) {
     popMenu(anchor, ['red_potion', 'blue_potion', 'revive_herb'].map(id => ({
-      html: `<img src="${iconURLof(id, S.items[id])}"> ${esc(S.items[id].name)} ×${countItem(id)}`,
+      html: `${itemImg(id)} ${esc(S.items[id].name)} ×${countItem(id)}`,
       disabled: !countItem(id), fn: () => ownerCmd('item', { item: id }),
     })));
   }
@@ -506,7 +510,7 @@ const UI = (() => {
       const [w, c] = careWord[k](v);
       return `<div class="care-row"><span>${label}</span><div class="bar thin ${k}"><i style="width:${clamp(v, 0, 100)}%"></i><span>${v} / 100</span></div><em class="${c}">${w}</em></div>`;
     };
-    const food = id => id && S.items[id] ? `<img src="${iconURLof(id, S.items[id])}">${esc(S.items[id].name)}` : '—';
+    const food = id => id && S.items[id] ? `${itemImg(id)}${esc(S.items[id].name)}` : '—';
     const taste = sp.love === '*' ? '雜食:什麼都喜歡吃' : `最愛 ${food(sp.love)}  討厭 ${food(sp.hate)}`;
     const cd = a => pt.cd && pt.cd[a] > 0 ? '<small>(冷卻)</small>' : '';
     const lock = (need, name) => pt.bond >= need ? `<b class="good">${name}</b>` : `<span class="dim">${name}(親密 ${need})</span>`;
@@ -531,7 +535,7 @@ const UI = (() => {
     const foods = [...S.foods].sort((a, b) => order[tasteOf(sp, a)] - order[tasteOf(sp, b)]);
     const items = foods.map(id => {
       const r = tasteOf(sp, id), n = countItem(id);
-      return { html: `<img src="${iconURLof(id, S.items[id])}"> ${esc(S.items[id].name)} ×${n} <small class="taste-${r}">${esc(S.tasteNames[r] || '')}</small>`,
+      return { html: `${itemImg(id)} ${esc(S.items[id].name)} ×${n} <small class="taste-${r}">${esc(S.tasteNames[r] || '')}</small>`,
         disabled: !n, fn: () => send({ t: 'feed', i: idx, item: id }) };
     });
     items.unshift({ html: `餵 <b>${esc(pt.n)}</b> 吃什麼?<small>飽食 ${pt.food}</small>`, disabled: true, cls: 'menu-head', fn: () => {} });
@@ -689,7 +693,7 @@ const UI = (() => {
         bred.map((e, i) => `<div class="shop-row"><div class="slot" style="background-image:url(${eggIcon(e.sp)})"></div>
           <div class="nm">${esc(e.n)}的配對蛋<small>素質 ${e.q0}~12 點 · ${e.inh ? '遺傳「' + esc((S.pskills[e.inh] || {}).name || '') + '」' : '沒有遺傳技能'}
           · ${(e.par || []).map(x => esc(x.n)).join(' × ')}</small></div><button data-egg="${i}">放入</button></div>`).join('') +
-        (eggs.length ? eggs.map(({ s, i }) => `<div class="shop-row"><div class="slot" data-item="${s.id}" style="background-image:url(${iconURLof(s.id, S.items[s.id])})"></div>
+        (eggs.length ? eggs.map(({ s, i }) => `<div class="shop-row"><div class="${slotCls(s.id)}" data-item="${s.id}" style="background-image:url(${iconURLof(s.id, S.items[s.id])})"></div>
           <div class="nm">${esc(S.items[s.id].name)} ×${s.n}<small>${esc(S.items[s.id].desc)}</small></div><button data-slot="${i}">放入</button></div>`).join('')
           : bred.length ? '' : '<p class="dim">你身上沒有蛋。可以向葛莉絲婆婆購買寵物蛋,或請婆婆幫寵物配對。</p>');
       body.querySelectorAll('button[data-slot]').forEach(b => b.onclick = () => { knob = null; send({ t: 'hstart', slot: +b.dataset.slot }); });
@@ -797,6 +801,7 @@ const UI = (() => {
       d.className = 'slot';
       if (s) {
         d.dataset.item = s.id;
+        d.className = slotCls(s.id);
         d.style.backgroundImage = `url(${iconURLof(s.id, S.items[s.id])})`;
         if (s.n > 1) d.innerHTML = `<span class="cnt">${s.n}</span>`;
         d.ondblclick = () => {
@@ -821,7 +826,7 @@ const UI = (() => {
     for (const id of m.items) {
       const it = S.items[id], row = document.createElement('div');
       row.className = 'shop-row';
-      row.innerHTML = `<div class="slot" data-shop="${id}" style="background-image:url(${iconURLof(id, it)})"></div>
+      row.innerHTML = `<div class="${slotCls(id)}" data-shop="${id}" style="background-image:url(${iconURLof(id, it)})"></div>
         <div class="nm">${esc(it.name)}<small>${esc(it.desc || '')}</small></div><div class="pr">${it.price}</div>`;
       const b = document.createElement('button');
       b.textContent = '購買';
@@ -888,7 +893,8 @@ const UI = (() => {
       const r = tasteOf(S.species[pt.sp] || {}, id);
       return `${esc(pt.n)}:<span class="taste-${r}">${esc(S.tasteNames[r] || '')}</span>`;
     }).join('  ') : '';
-    return `<b>${esc(it.name)}</b><br><span class="t">${type}</span><br>${esc(it.desc || '')}${tastes}<br>` +
+    const icon = itemArt(id) ? `<img class="tip-icon" src="${iconURLof(id, it)}">` : '';   // 有道具圖時放大成 48px
+    return `${icon}<b>${esc(it.name)}</b><br><span class="t">${type}</span><br>${esc(it.desc || '')}${tastes}<br>` +
       (isShop ? `<span class="p">售價 ${it.price} 金幣</span>` : `<span class="p">賣出價 ${Math.floor(it.price / 3)} 金幣</span>`);
   }
   function pskillTip(s) {

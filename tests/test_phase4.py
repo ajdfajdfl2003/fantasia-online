@@ -199,9 +199,20 @@ def test_npc_sizes():
     check('圖片清單帶著每位 NPC 的大小', all(art.get('npc_' + c) == gd.ART['npc_' + c] for c in codes))
 
 
+# ============================================================
+def test_item_icons():
+    print('\n[道具圖:spec 第 9 節]')
+    icons = server.asset_manifest(True).get('itemIcons', {})
+    check('工具頁的清單帶著每種道具的程式繪圖資料(跟成品並排比較用)',
+          set(icons) == set(gd.ITEMS) and all(v.get('icon') and v.get('col') for v in icons.values()),
+          sorted(set(gd.ITEMS) ^ set(icons)))
+    check('遊戲讀的清單不帶道具的程式繪圖資料', 'itemIcons' not in server.asset_manifest())
+
+
 def main():
     test_owner_sex()
     test_npc_sizes()
+    test_item_icons()
     test_art_names()
     test_art_save_and_manifest()
     test_src_mtime()

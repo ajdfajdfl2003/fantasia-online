@@ -415,7 +415,7 @@ function drawParts(t) {
     else { x = X + p.ox + p.vx * k; y = Y - h - 6 + p.oy + p.vy * k; }
     ctx.save();
     ctx.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
-    if (p.kind.startsWith('food:')) { const id = p.kind.slice(5); ctx.drawImage(iconC(id, S.items[id]), x - 10, y - 10, 20, 20); }
+    if (p.kind.startsWith('food:')) { const id = p.kind.slice(5); drawItemIcon(ctx, id, S.items[id], x - 10, y - 10, 20); }
     else drawMoodIcon(ctx, p.kind, x, y, t);
     ctx.restore();
   }
@@ -838,7 +838,7 @@ function drawEffects(t) {
     const x = (p.sx + (p.ex - p.sx) * k) * TILE + ox, y = (p.sy + (p.ey - p.sy) * k) * TILE + oy, ang = Math.atan2(p.ey - p.sy, p.ex - p.sx);
     if (p.kind === 'card') {
       ctx.save(); ctx.translate(x, y - Math.sin(k * Math.PI) * 30); ctx.rotate(k * 12);
-      ctx.drawImage(iconC('seal_card', S.items.seal_card), -12, -12, 24, 24); ctx.restore();
+      drawItemIcon(ctx, 'seal_card', S.items.seal_card, -12, -12, 24); ctx.restore();
     } else if (p.kind === 'wind') {
       ctx.save(); ctx.translate(x, y); ctx.strokeStyle = '#a0ffc8'; ctx.lineWidth = 2;
       for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, 5 + i * 4, t / 60 + i, t / 60 + i + 2.5); ctx.stroke(); }
