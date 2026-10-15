@@ -276,6 +276,7 @@ function unitBar(u, t) { return u.rd ? 100 : Math.min(100, u.bar + (u.rt || 0) *
 // ============================================================
 const PROJ = { fire: 'fire', ice: 'ice', wind: 'wind', sleep: 'magic', debuff: 'magic', poison: null, owner_seal: 'card' };
 const MELEE = new Set(['melee', 'slam', 'slash', 'poison', 'drain', 'bite']);
+const LEAN_ONLY = new Set(['owner_item', 'owner_seal', 'owner_swap']);   // 主人用道具、封印卡、換寵:只前傾,不發光、不換施法圖 (spec 第 7 節)
 const AOE_IMPACT = { flamerain: 'meteor', icicle: 'ice', storm: 'wind', holy: 'holy', darkc: 'dark', quake: 'rock', breath: 'burst' };
 const SINGLE_IMPACT = { fire: 'burst', ice: 'ice', wind: 'wind', laser: 'burst', rock: 'rock', slam: 'slam', bite: 'slam', poison: 'poison', drain: 'drain' };
 
@@ -456,6 +457,7 @@ function battleFx(f, t) {
       const a = U(f.s), tg = f.t ? U(f.t) : null;
       if (!a) break;
       a.atkT = t;
+      a.leanOnly = LEAN_ONLY.has(f.w);
       if (f.n) S.floats.push({ uid: a.i, text: f.n + (f.ty === 'owner' || f.ty === 'status' ? '' : '!!'), col: f.ty === 'owner' ? '#bfe8ff' : '#fff6a0', size: 13, t0: t, dur: 1100, font: FONT, head: 0.35 });
       if (MELEE.has(f.w) && tg) {
         const [tx, ty] = unitPos(tg.b, tg);
@@ -749,7 +751,7 @@ function drawBattleUnits(rb, t) {
     const atk = u.atkT ? clamp((t - u.atkT) / 300, 0, 1) : 0, sw = atk > 0 && atk < 1 ? atk : 0;
     if (u.k === 'o') {
       if (u.ko) drawGrave(ctx, x, y);
-      else drawOwner(ctx, x, y, u, { face: 1, atk: sw }, t);
+      else drawOwner(ctx, x, y, u, { face: 1, atk: sw, leanOnly: u.leanOnly }, t);
     } else {
       if (u.sg && !u.ko) {   // 助攻發動中:金色光暈
         const r = 26 + Math.sin(t / 90) * 3, gr = ctx.createRadialGradient(x, y - unitH(u) * 0.45, 4, x, y - unitH(u) * 0.45, r);

@@ -369,7 +369,7 @@ function loadArt(sizes) {
 function artFor(key, o) {
   if (!ART.on || !ART.imgs[key]) return null;
   if (o.atk > 0 && ART.imgs[key + '_attack']) return ART.imgs[key + '_attack'];
-  if (o.atk > 0 && ART.imgs[key + '_cast']) return ART.imgs[key + '_cast'];
+  if (o.atk > 0 && !o.leanOnly && ART.imgs[key + '_cast']) return ART.imgs[key + '_cast'];
   if (o.hurt && ART.imgs[key + '_hurt']) return ART.imgs[key + '_hurt'];
   if (o.sleep && ART.imgs[key + '_sleep']) return ART.imgs[key + '_sleep'];
   return ART.imgs[key];
@@ -450,7 +450,7 @@ function drawOwner(g, x, y, who, o, t) {
     drawHumanoid(g, x, y, { ...lookOwner(who.c, who.n, who.sx), ...o }, t);
     return;
   }
-  if (!(o.atk > 0)) return;
+  if (!(o.atk > 0) || o.leanOnly) return;   // 用道具、封印卡、換寵只前傾,不發光
   const m = ART.meta[key], ds = artDrawSize(key, ART.imgs[key], size), k = Math.sin(o.atk * Math.PI);
   drawCastGlow(g, x + face * (m.r - m.l) * ds * 0.5, y - (1 - m.top) * ds * 0.55, CAST_GLOW[who.c] || CAST_GLOW.mage, k, t);
 }
