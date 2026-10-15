@@ -186,8 +186,22 @@ def test_owner_sex():
     check('主人的顯示大小 52px', gd.ART.get('owner', {}).get('size') == 52, gd.ART.get('owner'))
 
 
+# ============================================================
+def test_npc_sizes():
+    print('\n[NPC 各自的大小:spec 第 8 節]')
+    codes = [n['c'] for n in server.NPCS]
+    missing = [c for c in codes if not gd.ART.get('npc_' + c, {}).get('size')]
+    check('每位 NPC 在 ART 都有自己的大小', not missing, missing)
+    check('不再有共用的 npc 大小', 'npc' not in gd.ART)
+    extra = [k for k in gd.ART if k.startswith('npc_') and k[4:] not in codes]
+    check('ART 裡沒有對不上 NPC 的 npc_ 代號', not extra, extra)
+    art = server.asset_manifest()['art']
+    check('圖片清單帶著每位 NPC 的大小', all(art.get('npc_' + c) == gd.ART['npc_' + c] for c in codes))
+
+
 def main():
     test_owner_sex()
+    test_npc_sizes()
     test_art_names()
     test_art_save_and_manifest()
     test_src_mtime()

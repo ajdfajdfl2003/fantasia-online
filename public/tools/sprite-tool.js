@@ -38,11 +38,12 @@ function kindNames(kind) {
 }
 // 每一類有哪些動作圖 (寵物:攻擊、受傷、睡著;主人:施法;NPC 沒有)
 const kindFrames = kind => T.man ? [...new Set(T.man.catalog.filter(e => e.k === kind && e.f).map(e => e.f))] : [];
-const SIZE_KEY = { npcs: 'npc', owners: 'owner' }, SIZE_DEFAULT = { npcs: 72, owners: 52 };
+// 顯示大小在 ART 裡的代號:寵物用種族、主人共用 owner、NPC 每位一個 npc_<代號> (spec 第 8 節)
+const SIZE_KEY = { owners: () => 'owner', npcs: id => 'npc_' + id }, SIZE_DEFAULT = { npcs: 52, owners: 52 };
 function makeTarget(kind, id, frame) {
   const file = `${kind}/${id}${frame ? '_' + frame : ''}.webp`;
   const art = T.man ? T.man.art : {};
-  const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art[SIZE_KEY[kind]] || {}).size || SIZE_DEFAULT[kind]);
+  const size = kind === 'pets' ? ((art[id] || {}).size || 64) : ((art[SIZE_KEY[kind](id)] || {}).size || SIZE_DEFAULT[kind]);
   return { kind, id, frame, file, key: file.replace(/\.webp$/, ''), baseKey: `${kind}/${id}`, size, hover: kind === 'pets' ? ((art[id] || {}).hover || 0) : 0 };
 }
 function fillTargets() {

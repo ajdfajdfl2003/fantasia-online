@@ -436,8 +436,8 @@ function creatureShadow(g, sp, x, y) {
   shadow(g, Math.max(6, w * 0.36), Math.max(2, w * 0.1), (ART.sizes[sp] || {}).hover ? 0.2 : 0.28);
   g.restore();
 }
-function drawNpcArt(g, cls, x, y, face, t) {
-  return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes.npc || {}).size || 72, 0);
+function drawNpcArt(g, cls, x, y, face, t) {   // 每位 NPC 各自的大小:ART 的 npc_<代號> (spec 第 8 節)
+  return drawArt(g, 'npcs/' + cls, x, y, { t, face, id: cls.length }, (ART.sizes['npc_' + cls] || {}).size || 52, 0);
 }
 
 // 主人 (spec 第 7 節):有圖用 owners/<職業>-<m|f>,沒圖用程式繪圖 (髮色依名字變、女角長髮)。

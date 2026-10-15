@@ -510,8 +510,12 @@ ART = {
     'wolf': {'size': 60}, 'skeleton': {'size': 52}, 'dove': {'size': 44, 'hover': 12}, 'fox': {'size': 60},
     'bat': {'size': 44, 'hover': 14}, 'griffin': {'size': 78}, 'drake': {'size': 68}, 'dragon': {'size': 160},
     'silverwolf': {'size': 60}, 'duskbird': {'size': 46, 'hover': 12},
-    'npc': {'size': 56},
     'owner': {'size': 52},   # 主人圖 owners/<職業>-<m|f>.webp,男女一樣大 (spec 第 7、12 節)
+    # NPC 圖 npcs/<代號>.webp,每位各自設 (spec 第 8 節):讓人的身高跟主人差不多。
+    # 寵物坐在頭頂、趴在背包上會讓圖變高,人會被縮小,所以村長、道具商人設大一點。
+    # 都是還沒有圖時估的暫定值,NPC 的圖進來後用比例對照頁調 (plan 第 17 項)
+    'npc_elder': {'size': 68}, 'npc_merchant': {'size': 62}, 'npc_healer': {'size': 52},
+    'npc_wizard': {'size': 52}, 'npc_hatcher': {'size': 52}, 'npc_keeper': {'size': 52},
 }
 for _k, _sp in SPECIES.items():   # 進化型態:初階的大小 × 1.15 / × 1.3
     if _sp['stage']:
